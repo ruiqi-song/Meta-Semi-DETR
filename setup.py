@@ -51,7 +51,8 @@ def parse_requirements(fname="requirements.txt", with_version=True):
                     if ";" in rest:
                         # Handle platform specific dependencies
                         # http://setuptools.readthedocs.io/en/latest/setuptools.html#declaring-platform-specific-dependencies
-                        version, platform_deps = map(str.strip, rest.split(";"))
+                        version, platform_deps = map(
+                            str.strip, rest.split(";"))
                         info["platform_deps"] = platform_deps
                     else:
                         version = rest  # NOQA
@@ -85,7 +86,7 @@ def parse_requirements(fname="requirements.txt", with_version=True):
 
 
 if __name__ == "__main__":
-    install_requires = parse_requirements()
+    # install_requires = parse_requirements()
     setup(
         # name="detr_od",
         name="detr_ssod",
@@ -95,7 +96,7 @@ if __name__ == "__main__":
         author="someone",
         author_email="someone",
         packages=find_packages(exclude=("configs", "tools", "demo")),
-        install_requires=install_requires,
+        # install_requires=install_requires,
         include_package_data=True,
         ext_modules=[],
         zip_safe=False,

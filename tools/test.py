@@ -13,12 +13,13 @@ from mmcv.runner import get_dist_info, init_dist, load_checkpoint, wrap_fp16_mod
 from mmdet.apis import multi_gpu_test, single_gpu_test
 from mmdet.datasets import build_dataloader, build_dataset, replace_ImageToTensor
 from mmdet.models import build_detector
-
+from detr_ssod.datasets import build_dataset
 from detr_ssod.utils import patch_config
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="MMDet test (and eval) a model")
+    parser = argparse.ArgumentParser(
+        description="MMDet test (and eval) a model")
     parser.add_argument("config", help="test config file path")
     parser.add_argument("checkpoint", help="checkpoint file")
     parser.add_argument(
@@ -160,7 +161,8 @@ def main():
         samples_per_gpu = cfg.data.test.pop("samples_per_gpu", 1)
         if samples_per_gpu > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
-            cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
+            cfg.data.test.pipeline = replace_ImageToTensor(
+                cfg.data.test.pipeline)
     elif isinstance(cfg.data.test, list):
         for ds_cfg in cfg.data.test:
             ds_cfg.test_mode = True
@@ -237,12 +239,13 @@ def main():
             assert hasattr(model.module.teacher.bbox_head, 'warm_up_step'), \
                 "Two phase ssod methods need has the warm_up_step attr!"
             outputs = single_gpu_test(
-                model, data_loader, args.show, args.show_dir, args.show_score_thr, curr_step=eval(step_info.split("_")[-1])
+                model, data_loader, args.show, args.show_dir, args.show_score_thr, curr_step=eval(
+                    step_info.split("_")[-1])
             )
         else:
             outputs = single_gpu_test(
-                    model, data_loader, args.show, args.show_dir, args.show_score_thr,
-                )
+                model, data_loader, args.show, args.show_dir, args.show_score_thr,
+            )
     else:
         model = MMDistributedDataParallel(
             model.cuda(),
@@ -253,9 +256,11 @@ def main():
             # check wether use the NMS to evaluate the performance
             assert hasattr(model.module.teacher.bbox_head, 'warm_up_step'), \
                 "Two phase ssod methods need has the warm_up_step attr!"
-            outputs = multi_gpu_test(model, data_loader, args.tmpdir, args.gpu_collect, curr_step=eval(step_info.split("_")[-1]))
+            outputs = multi_gpu_test(model, data_loader, args.tmpdir,
+                                     args.gpu_collect, curr_step=eval(step_info.split("_")[-1]))
         else:
-            outputs = multi_gpu_test(model, data_loader, args.tmpdir, args.gpu_collect)
+            outputs = multi_gpu_test(
+                model, data_loader, args.tmpdir, args.gpu_collect)
 
     rank, _ = get_dist_info()
     if rank == 0:
