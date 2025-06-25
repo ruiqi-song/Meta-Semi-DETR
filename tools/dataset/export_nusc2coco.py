@@ -6,8 +6,8 @@ Version: v1.0.0
 Author: Anonymous  && Anonymous@163.com
 Date: 2025-01-25 21:48:08
 Description: 
-LastEditors: Anonymous
-LastEditTime: 2025-06-25 14:29:59
+LastEditors: knightdby
+LastEditTime: 2025-06-25 21:55:21
 FilePath: /Meta-Semi-DETR/tools/dataset/export_nusc2coco.py
 Copyright 2025  by Inc, All Rights Reserved. 
 2025-01-25 21:48:08
@@ -292,7 +292,7 @@ def main(split='train'):
                     # 'segmentation': segmentation
                 })
                 ann_id_cnt += 1
-        break
+        # break
 
     with open(out_path, 'w') as fh:
         json.dump(annotation_ret, fh,  indent=4)

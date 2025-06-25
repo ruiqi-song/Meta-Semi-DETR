@@ -2,8 +2,7 @@
 
 This repo is the official implementation of paper ["Meta Semi-DETR: Semantic Prior Queries for Semi-Supervised Object Detection"](./assets/framework.png).
 
-Meta Semi-DETR is the first framework that incorporates large-scale
-vision-language models into semi-supervised object detection. It automatically generates semantic prior queries from unlabeled images to enhance object-level semantic representations and improve detection performance.
+Meta Semi-DETR, a novel semi-supervised object detection framework that is built upon the use of large-scale vision language models to automatically generate textual descriptions from unlabeled images. These descriptions are encoded into semantic prior queries and injected into the DETR architecture to enhance the semantic representation of object queries and improve detection performance.
 
 This repo is mostly built on top of [Semi-DETR](https://github.com/JCZ404/Semi-DETR). The Q-Adapter module is built on top of initial implementation in [LAVIS](https://github.com/salesforce/LAVIS).
 
@@ -14,7 +13,7 @@ This repo is mostly built on top of [Semi-DETR](https://github.com/JCZ404/Semi-D
 # Methods
 
 <p align="center">
-    <img src=./assets/framework.png width="90%" style="display: inline-block; margin-right: 2%;" />
+    <img src=./assets/framework.png width="95%" style="display: inline-block; margin-right: 2%;" />
 </p>
 
 # Setup
@@ -140,7 +139,7 @@ pip install nuscenes-devkit
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
   | 1% Data |0.351 0.512 0.373 0.192 0.378 0.481 | 🔽More | Google Drive|
-  | 5% Data |0.422 0.585 0.452 0.236 0.459 0.573 | 🔽More | [Google Drive]()|
+  | 5% Data |0.422 0.586 0.453 0.237 0.460 0.574 | 🔽More | [Google Drive]()|
   | 10% Data | 0.451 0.616 0.488 0.269 0.493 0.602| 🔽More | Google Drive|
 
     <details>
@@ -191,33 +190,33 @@ pip install nuscenes-devkit
   +---------------+-------+--------------+-------+----------------+-------+
   | category      | AP    | category     | AP    | category       | AP    |
   +---------------+-------+--------------+-------+----------------+-------+
-  | person        | 0.556 | bicycle      | 0.304 | car            | 0.432 |
-  | motorcycle    | 0.427 | airplane     | 0.697 | bus            | 0.682 |
-  | train         | 0.670 | truck        | 0.364 | boat           | 0.245 |
-  | traffic light | 0.259 | fire hydrant | 0.697 | stop sign      | 0.633 |
-  | parking meter | 0.503 | bench        | 0.241 | bird           | 0.391 |
-  | cat           | 0.755 | dog          | 0.682 | horse          | 0.605 |
-  | sheep         | 0.550 | cow          | 0.596 | elephant       | 0.677 |
-  | bear          | 0.786 | zebra        | 0.699 | giraffe        | 0.721 |
-  | backpack      | 0.126 | umbrella     | 0.373 | handbag        | 0.113 |
-  | tie           | 0.331 | suitcase     | 0.399 | frisbee        | 0.676 |
-  | skis          | 0.234 | snowboard    | 0.366 | sports ball    | 0.447 |
-  | kite          | 0.452 | baseball bat | 0.310 | baseball glove | 0.375 |
-  | skateboard    | 0.545 | surfboard    | 0.394 | tennis racket  | 0.466 |
-  | bottle        | 0.376 | wine glass   | 0.364 | cup            | 0.421 |
-  | fork          | 0.338 | knife        | 0.188 | spoon          | 0.160 |
-  | bowl          | 0.415 | banana       | 0.229 | apple          | 0.109 |
-  | sandwich      | 0.387 | orange       | 0.298 | broccoli       | 0.200 |
-  | carrot        | 0.176 | hot dog      | 0.401 | pizza          | 0.548 |
-  | donut         | 0.495 | cake         | 0.390 | chair          | 0.269 |
-  | couch         | 0.433 | potted plant | 0.228 | bed            | 0.480 |
-  | dining table  | 0.284 | toilet       | 0.626 | tv             | 0.576 |
-  | laptop        | 0.614 | mouse        | 0.616 | remote         | 0.295 |
-  | keyboard      | 0.536 | cell phone   | 0.345 | microwave      | 0.555 |
-  | oven          | 0.350 | toaster      | 0.257 | sink           | 0.385 |
-  | refrigerator  | 0.600 | book         | 0.129 | clock          | 0.515 |
-  | vase          | 0.390 | scissors     | 0.257 | teddy bear     | 0.502 |
-  | hair drier    | 0.012 | toothbrush   | 0.210 | None           | None  |
+  | person        | 0.555 | bicycle      | 0.299 | car            | 0.434 |
+  | motorcycle    | 0.437 | airplane     | 0.698 | bus            | 0.683 |
+  | train         | 0.672 | truck        | 0.373 | boat           | 0.238 |
+  | traffic light | 0.262 | fire hydrant | 0.701 | stop sign      | 0.621 |
+  | parking meter | 0.510 | bench        | 0.247 | bird           | 0.389 |
+  | cat           | 0.754 | dog          | 0.673 | horse          | 0.603 |
+  | sheep         | 0.547 | cow          | 0.595 | elephant       | 0.678 |
+  | bear          | 0.775 | zebra        | 0.696 | giraffe        | 0.724 |
+  | backpack      | 0.121 | umbrella     | 0.370 | handbag        | 0.112 |
+  | tie           | 0.334 | suitcase     | 0.395 | frisbee        | 0.674 |
+  | skis          | 0.238 | snowboard    | 0.375 | sports ball    | 0.445 |
+  | kite          | 0.447 | baseball bat | 0.316 | baseball glove | 0.373 |
+  | skateboard    | 0.541 | surfboard    | 0.400 | tennis racket  | 0.475 |
+  | bottle        | 0.379 | wine glass   | 0.371 | cup            | 0.416 |
+  | fork          | 0.346 | knife        | 0.194 | spoon          | 0.153 |
+  | bowl          | 0.412 | banana       | 0.229 | apple          | 0.117 |
+  | sandwich      | 0.388 | orange       | 0.308 | broccoli       | 0.203 |
+  | carrot        | 0.171 | hot dog      | 0.393 | pizza          | 0.539 |
+  | donut         | 0.497 | cake         | 0.391 | chair          | 0.268 |
+  | couch         | 0.435 | potted plant | 0.233 | bed            | 0.471 |
+  | dining table  | 0.284 | toilet       | 0.637 | tv             | 0.577 |
+  | laptop        | 0.604 | mouse        | 0.621 | remote         | 0.297 |
+  | keyboard      | 0.518 | cell phone   | 0.342 | microwave      | 0.556 |
+  | oven          | 0.359 | toaster      | 0.265 | sink           | 0.380 |
+  | refrigerator  | 0.597 | book         | 0.128 | clock          | 0.514 |
+  | vase          | 0.397 | scissors     | 0.256 | teddy bear     | 0.512 |
+  | hair drier    | 0.018 | toothbrush   | 0.234 | None           | None  |
   +---------------+-------+--------------+-------+----------------+-------+
   ```
 
@@ -262,6 +261,11 @@ pip install nuscenes-devkit
   ```
 
     </details>
+
+  Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
+  <p align="left">
+      <img src=./assets/eval_coco.png width="50%" style="display: inline-block; margin-right: 2%;" />
+  </p>
 
 - **NuScenes**
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
@@ -318,6 +322,11 @@ pip install nuscenes-devkit
   ```
 
     </details>
+
+  Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting.
+  <p align="left">
+      <img src=./assets/eval_nusc.png width="50%" style="display: inline-block; margin-right: 2%;" />
+  </p>
 
 # Acknowledgement
 
