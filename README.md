@@ -14,10 +14,10 @@ This repo is mostly built on top of [Semi-DETR](https://github.com/JCZ404/Semi-D
 # Methods
 
 <p align="center">
-    <img src=./assets/framework.png width="80%" style="display: inline-block; margin-right: 2%;" />
+    <img src=./assets/framework.png width="90%" style="display: inline-block; margin-right: 2%;" />
 </p>
 
-# Setup local environment
+# Setup
 
 <details>
 
@@ -106,7 +106,7 @@ pip install nuscenes-devkit
 
 # Training&Evaluation
 
-- Download bert-base-uncased model from [this link](https://huggingface.co/google-bert/bert-base-uncased) and put it under `weights/` folder.
+- Download bert-base-uncased model weight from [this link](https://huggingface.co/google-bert/bert-base-uncased) and put it under `weights/` folder.
 
 ## Training
 
@@ -122,7 +122,7 @@ pip install nuscenes-devkit
   bash dist_train.sh configs/metadetr_ssod_dino_r50_nusc_20k.py ${FOLD} ${PERCENT}
   ```
 
-  For example, you can run the following scripts to train metasemi-detr on 10% labeled COCO data with 8 GPUs on 1th split:
+- For example, you can run the following scripts to train metasemi-detr on 10% labeled COCO data with 8 GPUs on 1th split:
 
   ```shell script
   bash dist_train.sh configs/metadetr_ssod_dino_r50_coco_120k.py 1 10
@@ -136,19 +136,18 @@ pip install nuscenes-devkit
   python tools/test.py ${CONFIG_FILE_PATH} ${CHECKPOINT_PATH} --eval bbox
   ```
 
-- COCO
+- **COCO**
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
-  | 1% Data |0.351 0.512 0.373 0.192 0.378 0.481 | [More](#1%Data-details) | Google Drive|
-  | 5% Data |0.422 0.585 0.452 0.236 0.459 0.573 | [More](#5%Data-details) | [Google Drive]()|
-  | 10% Data | 0.451 0.616 0.488 0.269 0.493 0.602| [More](#10%Data-details) | Google Drive|
+  | 1% Data |0.351 0.512 0.373 0.192 0.378 0.481 | 🔽More | Google Drive|
+  | 5% Data |0.422 0.585 0.452 0.236 0.459 0.573 | 🔽More | [Google Drive]()|
+  | 10% Data | 0.451 0.616 0.488 0.269 0.493 0.602| 🔽More | Google Drive|
 
     <details>
 
-    <summary id="1%Data-details">1% Data Details</summary>
+    <summary>1% Data Details</summary>
 
-  ```json
-
+  ```ASCII
   +---------------+-------+--------------+-------+----------------+-------+
   | category      | AP    | category     | AP    | category       | AP    |
   +---------------+-------+--------------+-------+----------------+-------+
@@ -186,9 +185,9 @@ pip install nuscenes-devkit
 
     <details>
 
-    <summary id="5%Data-details">5% Data Details</summary>
+    <summary>5% Data Details</summary>
 
-  ```json
+  ```ASCII
   +---------------+-------+--------------+-------+----------------+-------+
   | category      | AP    | category     | AP    | category       | AP    |
   +---------------+-------+--------------+-------+----------------+-------+
@@ -226,10 +225,9 @@ pip install nuscenes-devkit
 
   <details>
 
-  <summary id="10%Data-details">10% Data Details</summary>
+  <summary>10% Data Details</summary>
 
-  ```json
-
+  ```ASCII
   +---------------+-------+--------------+-------+----------------+-------+
   | category      | AP    | category     | AP    | category       | AP    |
   +---------------+-------+--------------+-------+----------------+-------+
@@ -265,19 +263,17 @@ pip install nuscenes-devkit
 
     </details>
 
-- NuScenes
+- **NuScenes**
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
-  | 1% Data | 0.262 0.509 0.242 0.032 0.203 0.375| [More](#s1%Data-details) | Google Drive|
-  | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| [More](#s5%Data-details) |[Google Drive]() |
-  | 10% Data |0.329 0.591 0.330 0.062 0.270 0.453 | [More](#s10%Data-details) |Google Drive |
+  | 1% Data | 0.262 0.509 0.242 0.032 0.203 0.375| 🔽More | Google Drive|
+  | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| 🔽More |[Google Drive]() |
+  | 10% Data |0.329 0.591 0.330 0.062 0.270 0.453 | 🔽More |Google Drive |
 
-    <details>
+  <details>
+  <summary>1% Data Details</summary>
 
-    <summary id="s1%Data-details">1% Data Details</summary>
-
-  ```json
-
+  ```ASCII
   +------------+-------+----------------------+-------+--------------+-------+
   | category   | AP    | category             | AP    | category     | AP    |
   +------------+-------+----------------------+-------+--------------+-------+
@@ -288,13 +284,13 @@ pip install nuscenes-devkit
   +------------+-------+----------------------+-------+--------------+-------+
   ```
 
-    </details>
+  </details>
+
     <details>
 
-    <summary id="s5%Data-details">5% Data Details</summary>
+  <summary>5% Data Details</summary>
 
-  ```json
-
+  ```ASCII
   +------------+-------+----------------------+-------+--------------+-------+
   | category   | AP    | category             | AP    | category     | AP    |
   +------------+-------+----------------------+-------+--------------+-------+
@@ -308,10 +304,9 @@ pip install nuscenes-devkit
     </details>
     <details>
 
-    <summary id="s10%Data-details">10% Data Details</summary>
+    <summary>10% Data Details</summary>
 
-  ```json
-
+  ```ASCII
   +------------+-------+----------------------+-------+--------------+-------+
   | category   | AP    | category             | AP    | category     | AP    |
   +------------+-------+----------------------+-------+--------------+-------+
