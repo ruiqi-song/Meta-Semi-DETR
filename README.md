@@ -264,7 +264,7 @@ pip install nuscenes-devkit
 
   Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
   <p align="left">
-      <img src=./assets/eval_coco.png width="50%" style="display: inline-block; margin-right: 2%;" />
+      <img src=./assets/eval_coco.png width="90%" style="display: inline-block; margin-right: 2%;" />
   </p>
 
 - **NuScenes**
@@ -325,7 +325,7 @@ pip install nuscenes-devkit
 
   Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting.
   <p align="left">
-      <img src=./assets/eval_nusc.png width="50%" style="display: inline-block; margin-right: 2%;" />
+      <img src=./assets/eval_nusc.png width="90%" style="display: inline-block; margin-right: 2%;" />
   </p>
 
 # Acknowledgement
