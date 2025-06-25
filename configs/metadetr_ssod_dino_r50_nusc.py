@@ -3,17 +3,17 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-23 22:12:46
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-24 09:22:32
-FilePath: /MetaSemiDetr/configs/matedetr_ssod_dino_r50_coco.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 10:20:07
+FilePath: /Meta-Semi-DETR/configs/metadetr_ssod_dino_r50_nusc.py
 Copyright 2025 by Inc, All Rights Reserved. 
 2025-06-23 22:12:46
 """
 _base_ = [
-    "ssod_matedino_r50_coco_120k.py",
+    "ssod_metadino_r50_nusc_20k.py",
 ]
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -217,13 +217,13 @@ data = dict(
         _delete_=True,
         type="SemiDataset",
         sup=dict(
-            type="CocoDataset",
+            type="NuscCocoDataset",
             ann_file=None,
             img_prefix=None,
             pipeline=train_pipeline,
         ),
         unsup=dict(
-            type="CocoDataset",
+            type="NuscCocoDataset",
             ann_file=None,
             img_prefix=None,
             pipeline=unsup_pipeline,
@@ -238,7 +238,7 @@ data = dict(
             sample_ratio=[1, 4],
             by_prob=True,
             # at_least_one=True,
-            epoch_length=7330,
+            epoch_length=1670,
         )
     ),
 )
@@ -260,10 +260,10 @@ custom_hooks = [
     dict(type="MeanTeacher", momentum=0.999, interval=1, warm_up=0),
 
 ]
-evaluation = dict(type="SubModulesDistEvalHook", interval=4000)
-lr_config = dict(step=[120000, 160000])
-runner = dict(_delete_=True, type="IterBasedRunner", max_iters=180000)
-checkpoint_config = dict(by_epoch=False, interval=4000,
+evaluation = dict(type="SubModulesDistEvalHook", interval=2000)
+lr_config = dict(step=[12000, 16000])
+runner = dict(_delete_=True, type="IterBasedRunner", max_iters=18000)
+checkpoint_config = dict(by_epoch=False, interval=2000,
                          max_keep_ckpts=2, create_symlink=False)
 
 log_config = dict(

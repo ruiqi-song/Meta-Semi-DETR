@@ -3,33 +3,35 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
-Date: 2025-06-24 00:25:09
+Author: Anonymous  && Anonymous@com
+Date: 2025-06-23 22:13:41
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-24 00:29:04
-FilePath: /MetaSemiDetr/configs/detr_ssod_dino_r50_nusc_12k.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 09:56:18
+FilePath: /Meta-Semi-DETR/configs/metadetr_ssod_dino_r50_coco_120k.py
 Copyright 2025 by Inc, All Rights Reserved. 
-2025-06-24 00:25:09
+2025-06-23 22:13:41
 """
-_base_ = "detr_ssod_dino_r50_nusc.py"
-data_dir = '/file_system/nas/algorithm/ruiqi.song/helios/data/nuscenes_coco'
-caption_label_dir = 'captions_ovis'
+_base_ = "metadetr_ssod_dino_r50_coco.py"
+
+data_dir = './dataset/coco2017'
+caption_label_dir = 'captions_coco'
+
 data = dict(
     samples_per_gpu=5,
     workers_per_gpu=5,
     train=dict(
         sup=dict(
-            type="NuscCocoDataset",
+            type="CocoDataset",
             ann_file="${data_dir}/annotations/semi_supervised/instances_train2017.${fold}@${percent}.json",
-            img_prefix="${data_dir}/images/",
+            img_prefix="${data_dir}/train2017/",
             seg_prefix="${data_dir}/${caption_label_dir}/",
 
         ),
         unsup=dict(
-            type="NuscCocoDataset",
+            type="CocoDataset",
             ann_file="${data_dir}/annotations/semi_supervised/instances_train2017.${fold}@${percent}-unlabeled.json",
-            img_prefix="${data_dir}/images/",
+            img_prefix="${data_dir}/train2017/",
             seg_prefix="${data_dir}/${caption_label_dir}/",
         ),
     ),
@@ -41,7 +43,7 @@ data = dict(
 )
 
 semi_wrapper = dict(
-    type="DinoDetrSSOD",
+    type="MetaDinoDetrSSOD",
     model="${model}",
     train_cfg=dict(
         use_teacher_proposal=False,
@@ -60,11 +62,10 @@ custom_hooks = [
     dict(type='StepRecord', normalize=False),
 ]
 
-runner = dict(_delete_=True, type="IterBasedRunner", max_iters=20000)
+runner = dict(_delete_=True, type="IterBasedRunner", max_iters=120000)
 
-
-# work_dir = "work_dirs/${cfg_name}/${percent}/${fold}"
-work_dir = "./tlog_exps/test_coco/${cfg_name}/${percent}/${fold}"
+exp_dir = './tlog_exps'
+work_dir = "${exp_dir}/metasemidetr/${cfg_name}/${percent}/${fold}"
 log_config = dict(
     interval=50,
     hooks=[
@@ -74,13 +75,3 @@ log_config = dict(
              )
     ],
 )
-optimizer = dict(
-    type='AdamW',
-    lr=0.00005,
-    weight_decay=0.0001,
-    paramwise_cfg=dict(
-        bypass_duplicate=True,
-        custom_keys={'backbone': dict(lr_mult=0.1, decay_mult=1.0)}
-    )
-)
-find_unused_parameters = True

@@ -3,10 +3,10 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date:  2024-06-20 14:57:14
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-23 09:35:01
 FilePath: /MetaSemiDetr/detr_od/models/utils/blip2.py
 Copyright 2025 by Inc, All Rights Reserved. 

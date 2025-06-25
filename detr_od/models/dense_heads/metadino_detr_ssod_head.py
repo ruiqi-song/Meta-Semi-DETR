@@ -3,32 +3,36 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
-Date: 2024-12-31 17:03:44
+Author: Anonymous  && Anonymous@com
+Date: 2025-01-09 09:54:48
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-23 22:02:23
-FilePath: /MetaSemiDetr/detr_od/models/dense_heads/dino_detr_caption_head.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-23 09:31:12
+FilePath: /MetaSemiDetr/detr_od/models/dense_heads/metadino_detr_ssod_head.py
 Copyright 2025 by Inc, All Rights Reserved. 
-2024-12-31 17:03:44
+2025-01-09 09:54:48
 """
 import time
 import math
 import copy
 import torch
 import torch.nn as nn
+import numpy as np
 import torch.nn.functional as F
 from mmcv.cnn import Conv2d, Linear, build_activation_layer, bias_init_with_prob
 from mmcv.cnn.bricks.transformer import FFN, build_positional_encoding
 from mmcv.runner import force_fp32
 from mmdet.core import (bbox_cxcywh_to_xyxy, bbox_xyxy_to_cxcywh,
                         build_assigner, build_sampler, multi_apply,
-                        reduce_mean)
+                        reduce_mean, multiclass_nms)
 from mmdet.models.utils import build_transformer
 from mmdet.models.builder import HEADS, build_loss
 from mmdet.models.utils.transformer import inverse_sigmoid
 from .dn_components import *
 from mmdet.models.dense_heads.anchor_free_head import AnchorFreeHead
+
+
+# from .dn_components import prepare_for_cdn_plus, dn_post_process_plus
 
 
 class MLP(nn.Module):
@@ -48,7 +52,7 @@ class MLP(nn.Module):
 
 
 @HEADS.register_module()
-class MetaDINODETRHead(AnchorFreeHead):
+class MetaDINODETRSSODHead(AnchorFreeHead):
     """Implements the DETR transformer head.
 
     See `paper: End-to-End Object Detection with Transformers
@@ -85,7 +89,7 @@ class MetaDINODETRHead(AnchorFreeHead):
     def __init__(self,
                  num_classes=80,
                  in_channels=2048,
-                 num_query=300,
+                 num_query=900,
                  num_reg_fcs=2,
                  transformer=None,
                  num_feature_levels=4,
@@ -96,7 +100,7 @@ class MetaDINODETRHead(AnchorFreeHead):
                  dn_number=100,
                  dn_box_noise_scale=0.4,
                  dn_label_noise_ratio=0.5,
-                 dn_labelbook_size=10,
+                 dn_labelbook_size=81,
                  query_dim=2,
                  dec_pred_class_embed_share=True,
                  dec_pred_bbox_embed_share=True,
@@ -108,25 +112,35 @@ class MetaDINODETRHead(AnchorFreeHead):
                      type='SinePositionalEncoding',
                      num_feats=128,
                      normalize=True),
-                 loss_cls=dict(
-                     type='CrossEntropyLoss',
-                     bg_cls_weight=0.1,
-                     use_sigmoid=False,
-                     loss_weight=1.0,
-                     class_weight=1.0),
+                 loss_cls1=dict(
+                     type='TaskAlignedFocalLoss',
+                     use_sigmoid=True,
+                     gamma=2.0,
+                     loss_weight=2.0),
+                 loss_cls2=dict(
+                     type='FocalLoss',
+                     use_sigmoid=True,
+                     gamma=2.0,
+                     alpha=0.25,
+                     loss_weight=2.0),
                  loss_bbox=dict(type='L1Loss', loss_weight=5.0),
                  loss_iou=dict(type='GIoULoss', loss_weight=2.0),
                  loss_caption=dict(type='CaptionLoss',
                                    itc_loss_weight=0.5,
                                    itm_loss_weight=0.3,
                                    lm_loss_weight=0.5),
+                 # training and testing settings
                  train_cfg=dict(
-                     assigner=dict(
+                     assigner1=dict(
+                         type='O2MAssigner'),
+                     assigner2=dict(
                          type='HungarianAssigner',
-                         cls_cost=dict(type='ClassificationCost', weight=1.),
-                         reg_cost=dict(type='BBoxL1Cost', weight=5.0),
-                         iou_cost=dict(
-                             type='IoUCost', iou_mode='giou', weight=2.0))),
+                         cls_cost=dict(type='FocalLossCost', weight=2.0),
+                         reg_cost=dict(type='BBoxL1Cost',
+                                       weight=5.0, box_format='xywh'),
+                         iou_cost=dict(type='IoUCost',
+                                       iou_mode='giou', weight=2.0),
+                         debug=False)),
                  test_cfg=dict(max_per_img=100),
                  init_cfg=None,
                  caption_pretrain=False,
@@ -135,44 +149,52 @@ class MetaDINODETRHead(AnchorFreeHead):
         # since it brings inconvenience when the initialization of
         # `AnchorFreeHead` is called.
         super(AnchorFreeHead, self).__init__(init_cfg)
+        # import ipdb; ipdb.set_trace()
         self.bg_cls_weight = 0
         self.sync_cls_avg_factor = sync_cls_avg_factor
-        class_weight = loss_cls.get('class_weight', None)
-        if class_weight is not None and (self.__class__ is DINODETRCAPHead):
+        class_weight = loss_cls2.get('class_weight', None)
+        if class_weight is not None and (self.__class__ is DABDETRTwoPhaseHead):
             assert isinstance(class_weight, float), 'Expected ' \
                 'class_weight to have type float. Found ' \
                 f'{type(class_weight)}.'
             # NOTE following the official DETR rep0, bg_cls_weight means
             # relative classification weight of the no-object class.
-            bg_cls_weight = loss_cls.get('bg_cls_weight', class_weight)
+            bg_cls_weight = loss_cls2.get('bg_cls_weight', class_weight)
             assert isinstance(bg_cls_weight, float), 'Expected ' \
                 'bg_cls_weight to have type float. Found ' \
                 f'{type(bg_cls_weight)}.'
             class_weight = torch.ones(num_classes + 1) * class_weight
             # set background class as the last indice
             class_weight[num_classes] = bg_cls_weight
-            loss_cls.update({'class_weight': class_weight})
-            if 'bg_cls_weight' in loss_cls:
-                loss_cls.pop('bg_cls_weight')
+            loss_cls2.update({'class_weight': class_weight})
+            if 'bg_cls_weight' in loss_cls2:
+                loss_cls2.pop('bg_cls_weight')
             self.bg_cls_weight = bg_cls_weight
 
         if train_cfg:
-            assert 'assigner' in train_cfg, 'assigner should be provided '\
+            assert 'assigner2' in train_cfg, 'assigner should be provided '\
                 'when train_cfg is set.'
-            assigner = train_cfg['assigner']
-            assert loss_cls['loss_weight'] == assigner['cls_cost']['weight'], \
+
+            assigner1 = train_cfg['assigner1']
+            assigner2 = train_cfg['assigner2']
+            assert loss_cls2['loss_weight'] == assigner2['cls_cost']['weight'], \
                 'The classification weight for loss and matcher should be' \
                 'exactly the same.'
-            assert loss_bbox['loss_weight'] == assigner['reg_cost'][
+            assert loss_bbox['loss_weight'] == assigner2['reg_cost'][
                 'weight'], 'The regression L1 weight for loss and matcher ' \
                 'should be exactly the same.'
-            assert loss_iou['loss_weight'] == assigner['iou_cost']['weight'], \
+            assert loss_iou['loss_weight'] == assigner2['iou_cost']['weight'], \
                 'The regression iou weight for loss and matcher should be' \
                 'exactly the same.'
-            self.assigner = build_assigner(assigner)
+
+            # NOTE: here we build to assigner to used in different stage
+            self.assigner1 = build_assigner(assigner1)
+            self.assigner2 = build_assigner(assigner2)
+
             # DETR sampling=False, so use PseudoSampler
             sampler_cfg = dict(type='PseudoSampler')
             self.sampler = build_sampler(sampler_cfg, context=self)
+
         self.num_query = num_query
         self.num_classes = num_classes
         self.in_channels = in_channels
@@ -180,7 +202,10 @@ class MetaDINODETRHead(AnchorFreeHead):
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         self.fp16_enabled = False
-        self.loss_cls = build_loss(loss_cls)
+
+        # NOTE: for two difference phase, we have difference classification loss
+        self.loss_cls1 = build_loss(loss_cls1)
+        self.loss_cls2 = build_loss(loss_cls2)
         self.loss_bbox = build_loss(loss_bbox)
         self.loss_iou = build_loss(loss_iou)
         self.loss_caption = build_loss(loss_caption)
@@ -211,7 +236,7 @@ class MetaDINODETRHead(AnchorFreeHead):
         self.dn_label_noise_ratio = dn_label_noise_ratio
         self.dn_labelbook_size = dn_labelbook_size
 
-        if self.loss_cls.use_sigmoid:
+        if self.loss_cls2.use_sigmoid:
             self.cls_out_channels = num_classes
         else:
             self.cls_out_channels = num_classes + 1
@@ -229,6 +254,10 @@ class MetaDINODETRHead(AnchorFreeHead):
             f' be exactly 2 times of num_feats. Found {self.embed_dims}' \
             f' and {num_feats}.'
         self._init_layers()
+
+        # NOTE: set the warm-up state
+        self.warm_up_step = test_cfg['warm_up_step']
+        self.in_warm_up = False      # indicator whether in the warm_up stage, default is False
 
     def _init_layers(self):
         """Initialize layers of the transformer head."""
@@ -293,9 +322,6 @@ class MetaDINODETRHead(AnchorFreeHead):
             self.fc_enc_cls = copy.deepcopy(_class_embed)
 
         # Initialize the reference embedding
-        # In DINO, cause we use two stage method to generate the
-        # image content depended object query, so we actually don't
-        # intitialize the refpoint embedding manually
         self.refpoint_embed = None
 
         # Initialize the dn label embedding
@@ -324,10 +350,13 @@ class MetaDINODETRHead(AnchorFreeHead):
                                           strict, missing_keys,
                                           unexpected_keys, error_msgs)
 
-    def prep_for_dn(self, dn_meta):
+    def prep_for_dn(self, dn_meta, is_pseudo_label=False):
         """Get some dn part information
         """
-        num_dn_groups, pad_size = dn_meta['num_dn_group'], dn_meta['pad_size']
+        if is_pseudo_label:
+            num_dn_groups, pad_size = dn_meta['num_dn_group_2'], dn_meta['pad_size_2']
+        else:
+            num_dn_groups, pad_size = dn_meta['num_dn_group'], dn_meta['pad_size']
         assert pad_size % num_dn_groups == 0
         single_pad = pad_size // num_dn_groups
         # single_pad: the padding size for each image
@@ -341,7 +370,9 @@ class MetaDINODETRHead(AnchorFreeHead):
                 attn_mask=None,
                 dn_meta=None,
                 gt_caption=None, training=True):
-        # breakpoint()
+
+        # import ipdb;ipdb.set_trace()
+
         batch_size = mlvl_feats[0].size(0)
         input_img_h, input_img_w = img_metas[0]['batch_input_shape']
         img_masks = mlvl_feats[0].new_ones(
@@ -373,40 +404,26 @@ class MetaDINODETRHead(AnchorFreeHead):
                     img_masks[None], size=src.shape[-2:]).to(torch.bool).squeeze(0))
                 mlvl_positional_encodings.append(
                     self.positional_encoding(mlvl_masks[-1]))
+        hs, reference, hs_enc, ref_enc, init_box_proposal, _, caption_loss = self.transformer(srcs,
+                                                                                              mlvl_masks,
+                                                                                              input_query_bbox,
+                                                                                              mlvl_positional_encodings,
+                                                                                              input_query_label,
+                                                                                              attn_mask,
+                                                                                              fc_reg=self.fc_reg, fc_cls=self.fc_cls,
+                                                                                              fc_enc_reg=self.fc_enc_reg, fc_enc_cls=self.fc_enc_cls,
+                                                                                              gt_caption=gt_caption, training=training)
 
-        # Transformer forward
-        # hs: list with each has the shape of [bs, pad_size + num_query, embed_dim], length 6
-        # reference: list with each has the shape of [bs, pad_size + num_query, 4],
-        # hs_enc: list with each has the shape of [bs, num_query, embed_dim], length 1
-        # ref_enc: list with each has the shape of [bs, num_query, 4], length 1
-        hs, reference, hs_enc, ref_enc, init_box_proposal, caption_loss = self.transformer(srcs,
-                                                                                           mlvl_masks,
-                                                                                           input_query_bbox,
-                                                                                           mlvl_positional_encodings,
-                                                                                           input_query_label,
-                                                                                           attn_mask,
-                                                                                           fc_reg=self.fc_reg, fc_cls=self.fc_cls,
-                                                                                           fc_enc_reg=self.fc_enc_reg, fc_enc_cls=self.fc_enc_cls,
-                                                                                           gt_caption=gt_caption, training=training)
-        # In case num object=0
-        # hs: [num_dec_layer, bs, num_query + dn_size, embed_dim]
-        # label_enc: [num_class + 1, embed_dim]
         hs[0] += self.label_enc.weight[0, 0] * 0.0
 
         # regression
-        # Deformable-DETR like iter anchor update
-        # reference_before_sigmoid = inverse_sigmoid(reference[:-1]) # n_dec, bs, nq, 4
-        # self.fc_reg是多个共享权重的MLP head用来预测box的location
-        # 这里在同时处理了原始的object query和dn_part的object query
         outputs_coord_list = []
-        # breakpoint()
         for dec_lid, (layer_ref_sig, layer_fc_reg, layer_hs) in enumerate(zip(reference[:-1], self.fc_reg, hs)):
             layer_delta_unsig = layer_fc_reg(layer_hs)
             layer_outputs_unsig = layer_delta_unsig + \
                 inverse_sigmoid(layer_ref_sig)
             layer_outputs_unsig = layer_outputs_unsig.sigmoid()
             outputs_coord_list.append(layer_outputs_unsig)
-        # breakpoint()
         # [num_dec_layer, bs, num_query + dn_size, 4]
         outputs_coord = torch.stack(outputs_coord_list)
 
@@ -417,24 +434,17 @@ class MetaDINODETRHead(AnchorFreeHead):
         # encoder output
         if hs_enc is not None:
             # prepare the intermediate outputs
-            # ref_enc是初始的从encoder feature map筛选出来送入到decoder中的refpoint_embed, sigmoid normalized
             # [bs, num_query, 4]
             interm_outputs_coord = ref_enc[-1]
-            # 这个用来做分类的是用的和fc_class相同结构，但是不同实例的MLP Head
             interm_outputs_class = self.fc_enc_cls(
                 hs_enc[-1])  # [bs, num_query, cls_out_channels]
 
-        # dn_components post process
         if self.dn_number > 0 and dn_meta is not None:
-            # 从模型的预测中，将dn_part部分的label和bbox的预测拆分出来
-            # outputs_class: [num_dec_layer, bs, num_query, cls_out_channels]
-            # outputs_coord: [num_dec_layer, bs, num_query, 4]
-            # dn_outputs_class: [num_dec_layer, bs, padding_size, cls_out_channels]
-            # dn_outputs_coord: [num_dec_layer, bs, padding_size, 4]
-            # NOTE: sometimes there is no dn_part
-            outputs_class, outputs_coord, dn_outputs_class, dn_outputs_coord = dn_post_process(
+
+            outputs_class, outputs_coord, dn_outputs_class, dn_outputs_coord = dn_post_process_plus(
                 outputs_class, outputs_coord, dn_meta)
         else:
+            # When test, there is no dn_part
             dn_outputs_class, dn_outputs_coord = None, None
 
         return (outputs_class, outputs_coord, interm_outputs_class, interm_outputs_coord, dn_outputs_class, dn_outputs_coord), caption_loss
@@ -444,7 +454,9 @@ class MetaDINODETRHead(AnchorFreeHead):
                       input_query_label=None,
                       input_query_bbox=None,
                       attn_mask=None,
-                      dn_meta=None):
+                      dn_meta=None,
+                      gt_caption=None
+                      ):
         # breakpoint()
         # import ipdb;ipdb.set_trace()
         batch_size = mlvl_feats[0].size(0)
@@ -479,29 +491,18 @@ class MetaDINODETRHead(AnchorFreeHead):
                 mlvl_positional_encodings.append(
                     self.positional_encoding(mlvl_masks[-1]))
 
-        # Transformer forward
-        # hs: list with each has the shape of [bs, pad_size + num_query, embed_dim], length 6
-        # reference: list with each has the shape of [bs, pad_size + num_query, 4],
-        # hs_enc: list with each has the shape of [bs, num_query, embed_dim], length 1
-        # ref_enc: list with each has the shape of [bs, num_query, 4], length 1
-        hs, reference, hs_enc, ref_enc, init_box_proposal, _ = self.transformer(srcs,
-                                                                                mlvl_masks,
-                                                                                input_query_bbox,
-                                                                                mlvl_positional_encodings,
-                                                                                input_query_label,
-                                                                                attn_mask,
-                                                                                fc_reg=self.fc_reg, fc_cls=self.fc_cls,
-                                                                                fc_enc_reg=self.fc_enc_reg, fc_enc_cls=self.fc_enc_cls)
-        # In case num object=0
-        # hs: [num_dec_layer, bs, num_query + dn_size, embed_dim]
-        # label_enc: [num_class + 1, embed_dim]
+        hs, reference, hs_enc, ref_enc, init_box_proposal, cap_query_feat, caption_loss = self.transformer(srcs,
+                                                                                                           mlvl_masks,
+                                                                                                           input_query_bbox,
+                                                                                                           mlvl_positional_encodings,
+                                                                                                           input_query_label,
+                                                                                                           attn_mask,
+                                                                                                           fc_reg=self.fc_reg, fc_cls=self.fc_cls,
+                                                                                                           fc_enc_reg=self.fc_enc_reg, fc_enc_cls=self.fc_enc_cls,
+                                                                                                           gt_caption=gt_caption)
+
         hs[0] += self.label_enc.weight[0, 0] * 0.0
 
-        # regression
-        # Deformable-DETR like iter anchor update
-        # reference_before_sigmoid = inverse_sigmoid(reference[:-1]) # n_dec, bs, nq, 4
-        # self.fc_reg是多个共享权重的MLP head用来预测box的location
-        # 这里在同时处理了原始的object query和dn_part的object query
         outputs_coord_list = []
         # breakpoint()
         for dec_lid, (layer_ref_sig, layer_fc_reg, layer_hs) in enumerate(zip(reference[:-1], self.fc_reg, hs)):
@@ -521,27 +522,29 @@ class MetaDINODETRHead(AnchorFreeHead):
         # encoder output
         if hs_enc is not None:
             # prepare the intermediate outputs
-            # ref_enc是初始的从encoder feature map筛选出来送入到decoder中的refpoint_embed, sigmoid normalized
             # [bs, num_query, 4]
             interm_outputs_coord = ref_enc[-1]
-            # 这个用来做分类的是用的和fc_class相同结构，但是不同实例的MLP Head
             interm_outputs_class = self.fc_enc_cls(
                 hs_enc[-1])  # [bs, num_query, cls_out_channels]
 
         # dn_components post process
         if self.dn_number > 0 and dn_meta is not None:
-            # 从模型的预测中，将dn_part部分的label和bbox的预测拆分出来
-            # outputs_class: [num_dec_layer, bs, num_query, cls_out_channels]
-            # outputs_coord: [num_dec_layer, bs, num_query, 4]
-            # dn_outputs_class: [num_dec_layer, bs, padding_size, cls_out_channels]
-            # dn_outputs_coord: [num_dec_layer, bs, padding_size, 4]
-            # NOTE: sometimes there is no dn_part
-            outputs_class, outputs_coord, dn_outputs_class, dn_outputs_coord = dn_post_process(
-                outputs_class, outputs_coord, dn_meta)
-        else:
-            dn_outputs_class, dn_outputs_coord = None, None
+            pad_size_1 = dn_meta['pad_size_1']
+            pad_size_2 = dn_meta['pad_size_2']
+            consistency_outputs_class = outputs_class[:, :, :pad_size_1, :]
+            consistency_outputs_coord = outputs_coord[:, :, :pad_size_1, :]
 
-        return hs, outputs_class, outputs_coord, interm_outputs_class, interm_outputs_coord, dn_outputs_class, dn_outputs_coord
+            dn_outputs_class = outputs_class[:, :,
+                                             pad_size_1:pad_size_1 + pad_size_2, :]
+            dn_outputs_coord = outputs_coord[:, :,
+                                             pad_size_1:pad_size_1 + pad_size_2, :]
+
+            outputs_class = outputs_class[:, :, pad_size_1 + pad_size_2:, :]
+            outputs_coord = outputs_coord[:, :, pad_size_1 + pad_size_2:, :]
+        else:
+            consistency_outputs_class, consistency_outputs_coord, dn_outputs_class, dn_outputs_coord = None, None, None, None
+
+        return (hs, outputs_class, outputs_coord, interm_outputs_class, interm_outputs_coord, consistency_outputs_class, consistency_outputs_coord, dn_outputs_class, dn_outputs_coord), caption_loss, cap_query_feat
 
     @force_fp32(apply_to=('all_cls_scores', 'all_bbox_preds', 'enc_cls_scores', 'enc_bbox_preds', 'dn_cls_scores', 'dn_bbox_preds'))
     def loss(self,
@@ -555,49 +558,42 @@ class MetaDINODETRHead(AnchorFreeHead):
              dn_bbox_preds,         # [num_dec_layer, bs, padding_size, 4]
              gt_bboxes_list,
              gt_labels_list,
-             caption_loss=None,
              # [[num_gt,] x num_img] the soft scores to weight the corresponding classification loss and regression loss
              gt_scores_list=None,
              img_metas=None,
              dn_metas=None,
              gt_bboxes_ignore=None,
-             decouple=False):
+             is_pseudo_label=False,
+             caption_loss=None):
+        # import ipdb;ipdb.set_trace()
 
         assert gt_bboxes_ignore is None, \
             f'{self.__class__.__name__} only supports ' \
             f'for gt_bboxes_ignore setting to None.'
-        # breakpoint()
         num_dec_layers = len(all_cls_scores)
 
-        # 多个decoder layer都需要进行matcher和loss的计算
         all_gt_bboxes_list = [gt_bboxes_list for _ in range(num_dec_layers)]
         all_gt_labels_list = [gt_labels_list for _ in range(num_dec_layers)]
+        # gt_scores used for the pseudo labels to the GMM pseudo label filtering
         all_gt_scores_list = [gt_scores_list for _ in range(num_dec_layers)]
         all_gt_bboxes_ignore_list = [
             gt_bboxes_ignore for _ in range(num_dec_layers)]
 
         img_metas_list = [img_metas for _ in range(num_dec_layers)]
 
-        # 注意计算逻辑，先decoder layer，然后再是每张图片，所以dn_metas要和image metas
-        # 一样，进行复制
         num_imgs = len(gt_bboxes_list)
         dn_metas_valid = [dn_metas for i in range(num_imgs)]
-        dn_metas_invalid = [None for i in range(num_imgs)]
-
         dn_metas_list = [dn_metas_valid for _ in range(num_dec_layers)]
-        dn_metas_list_ = [dn_metas_invalid for _ in range(num_dec_layers)]
 
-        # 对每个decoder layer进行object query loss的计算
+        # regression and classification loss of head
+        # use the gt_scores_list to make sure whether it's pseudo label or not
         losses_cls, losses_bbox, losses_iou, losses_bbox_xy, losses_bbox_hw = multi_apply(
             self.loss_single, all_cls_scores, all_bbox_preds,
-            all_gt_bboxes_list, all_gt_labels_list, all_gt_scores_list,  # add the gt_scores_list
-            img_metas_list, dn_metas_list_,
-            all_gt_bboxes_ignore_list, decouple=decouple)
+            all_gt_bboxes_list, all_gt_labels_list, all_gt_scores_list,
+            img_metas_list, all_gt_bboxes_ignore_list)
 
-        # 对每个decoder layer进行denosing query loss的计算
-        if dn_cls_scores is None or dn_bbox_preds is None:
-            # in case there is no dn_part
-            # import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
+        if self.in_warm_up and is_pseudo_label:
             dn_losses_cls = [torch.as_tensor(0.).to(
                 'cuda') for i in range(num_dec_layers)]
             dn_losses_bbox = [torch.as_tensor(0.).to(
@@ -609,12 +605,10 @@ class MetaDINODETRHead(AnchorFreeHead):
             dn_losses_bbox_hw = [torch.as_tensor(0.).to(
                 'cuda') for i in range(num_dec_layers)]
         else:
-            # import ipdb; ipdb.set_trace()
             dn_losses_cls, dn_losses_bbox, dn_losses_iou, dn_losses_bbox_xy, dn_losses_bbox_hw = multi_apply(
-                self.loss_single, dn_cls_scores, dn_bbox_preds,
+                self.loss_single_dn, dn_cls_scores, dn_bbox_preds,
                 all_gt_bboxes_list, all_gt_labels_list, all_gt_scores_list,
-                img_metas_list, dn_metas_list,
-                all_gt_bboxes_ignore_list, decouple=decouple)
+                img_metas_list, dn_metas_list, all_gt_bboxes_ignore_list, is_pseudo_label=is_pseudo_label)
 
         loss_dict = dict()
 
@@ -624,11 +618,10 @@ class MetaDINODETRHead(AnchorFreeHead):
                 torch.zeros_like(gt_labels_list[i])
                 for i in range(len(img_metas))
             ]
-            # be careful that the encoder prediction, we only calculate a single layer loss
             enc_loss_cls, enc_loss_bbox, enc_loss_iou, enc_loss_bbox_xy, enc_loss_bbox_hw = \
                 self.loss_single(enc_cls_scores, enc_bbox_preds,
-                                 gt_bboxes_list, binary_labels_list, gt_scores_list,    #
-                                 img_metas, dn_metas_list_[0], gt_bboxes_ignore, decouple=decouple)
+                                 gt_bboxes_list, binary_labels_list, gt_scores_list,
+                                 img_metas, gt_bboxes_ignore)
             loss_dict['enc_loss_cls'] = enc_loss_cls
             loss_dict['enc_loss_bbox'] = enc_loss_bbox
             loss_dict['enc_loss_iou'] = enc_loss_iou
@@ -674,10 +667,12 @@ class MetaDINODETRHead(AnchorFreeHead):
             loss_dict[f'd{num_dec_layer}.dn_loss_bbox_xy'] = dn_loss_bbox_xy_i
             loss_dict[f'd{num_dec_layer}.dn_loss_bbox_hw'] = dn_loss_bbox_hw_i
             num_dec_layer += 1
+
         if self.caption_pretrain:
             loss_dict = dict()
-        loss_dict['loss_itc'], loss_dict['loss_itm'], loss_dict['loss_lm'] = self.loss_caption(
-            caption_loss)
+        if caption_loss is not None:
+            loss_dict['loss_itc'], loss_dict['loss_itm'], loss_dict['loss_lm'] = self.loss_caption(
+                caption_loss)
         return loss_dict
 
     def loss_single(self,
@@ -687,9 +682,7 @@ class MetaDINODETRHead(AnchorFreeHead):
                     gt_labels_list,
                     gt_scores_list=None,
                     img_metas=None,
-                    dn_metas=None,
-                    gt_bboxes_ignore_list=None,
-                    decouple=False):
+                    gt_bboxes_ignore_list=None):
         """"Loss function for outputs from a single decoder layer of a single
         feature level.
 
@@ -712,13 +705,184 @@ class MetaDINODETRHead(AnchorFreeHead):
                 a single decoder layer.
         """
         # breakpoint()
+        # import ipdb;ipdb.set_trace()
         num_imgs = cls_scores.size(0)
         cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
         bbox_preds_list = [bbox_preds[i] for i in range(num_imgs)]
 
         cls_reg_targets = self.get_targets(cls_scores_list, bbox_preds_list,
                                            gt_bboxes_list, gt_labels_list, gt_scores_list,
-                                           img_metas, dn_metas, gt_bboxes_ignore_list, decouple=decouple)
+                                           img_metas, gt_bboxes_ignore_list)
+
+        if self.in_warm_up:
+            # Note: in warm_up stage, one-to-many matching is for pseudo bbox and gt bbox
+            # and the loss_weight for regression is slightly different
+            (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
+             norm_alignment_metrics_list, num_total_pos, num_total_neg) = cls_reg_targets
+
+            labels = torch.cat(labels_list, 0)
+            label_weights = torch.cat(label_weights_list, 0)
+            bbox_targets = torch.cat(bbox_targets_list, 0)
+            bbox_weights = torch.cat(bbox_weights_list, 0)
+            norm_alignment_metrics = torch.cat(
+                norm_alignment_metrics_list, 0)  # [num_query * num_img,]
+
+            # classification loss
+            cls_scores = cls_scores.reshape(-1, self.cls_out_channels)
+            # construct weighted avg_factor to match with the official DETR repo
+            cls_avg_factor = num_total_pos * 1.0 + \
+                num_total_neg * self.bg_cls_weight
+            if self.sync_cls_avg_factor:
+                cls_avg_factor = reduce_mean(
+                    cls_scores.new_tensor([cls_avg_factor]))
+            cls_avg_factor = max(cls_avg_factor, 1)
+
+            # Compute the average sum of alignment metrics accross all gpus, for
+            # normalization purposes
+            sum_alignment_metrics = norm_alignment_metrics.new_tensor(
+                [norm_alignment_metrics.sum()])
+            sum_alignment_metrics = torch.clamp(
+                reduce_mean(sum_alignment_metrics), min=1.).item()
+
+            # task align focal loss take the normalized alignment metric as the classification target
+            loss_cls = self.loss_cls1(
+                cls_scores.sigmoid(), labels, norm_alignment_metrics, avg_factor=sum_alignment_metrics)
+
+            # Compute the average number of gt boxes across all gpus, for
+            # normalization purposes
+            num_total_pos = loss_cls.new_tensor([num_total_pos])
+            num_total_pos = torch.clamp(
+                reduce_mean(num_total_pos), min=1).item()
+
+            # construct factors used for rescale bboxes
+            factors = []
+            for img_meta, bbox_pred in zip(img_metas, bbox_preds):
+                img_h, img_w, _ = img_meta['img_shape']
+                factor = bbox_pred.new_tensor([img_w, img_h, img_w,
+                                               img_h]).unsqueeze(0).repeat(
+                    bbox_pred.size(0), 1)
+                factors.append(factor)
+            factors = torch.cat(factors, 0)
+
+            bg_class_ind = self.num_classes
+            pos_inds = ((labels >= 0) & (labels < bg_class_ind)
+                        ).nonzero().squeeze(1)
+
+            bbox_preds = bbox_preds.reshape(-1, 4)
+            bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
+            bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors
+
+            if len(pos_inds) > 0:
+                pos_bboxes = bboxes[pos_inds]
+                pos_bboxes_gt = bboxes_gt[pos_inds]
+
+                pos_bbox_weights = bbox_weights[pos_inds]
+
+                reg_avg_factor = norm_alignment_metrics.new_tensor(
+                    [pos_bbox_weights[:, 0].sum()])
+                reg_avg_factor = torch.clamp(
+                    reduce_mean(reg_avg_factor), min=1.).item()
+
+                loss_iou = self.loss_iou(
+                    pos_bboxes, pos_bboxes_gt, pos_bbox_weights, avg_factor=reg_avg_factor)
+
+                # regression L1 loss
+                pos_bbox_preds = bbox_preds[pos_inds]
+                pos_bbox_targets = bbox_targets[pos_inds]
+
+                loss_bbox = self.loss_bbox(
+                    pos_bbox_preds, pos_bbox_targets, pos_bbox_weights, avg_factor=reg_avg_factor)
+                loss_bbox_xy = self.loss_bbox(
+                    pos_bbox_preds[..., :2], pos_bbox_targets[..., :2], pos_bbox_weights[..., :2], avg_factor=reg_avg_factor)
+                loss_bbox_hw = self.loss_bbox(
+                    pos_bbox_preds[..., 2:], pos_bbox_targets[..., 2:], pos_bbox_weights[..., 2:], avg_factor=reg_avg_factor)
+            else:
+                sum_pos_alignment_metrics = norm_alignment_metrics.new_tensor([
+                                                                              0])
+                sum_pos_alignment_metrics = torch.clamp(
+                    reduce_mean(sum_pos_alignment_metrics), min=1.).item()
+                loss_bbox = bbox_pred.sum() * 0
+                loss_iou = bbox_pred.sum() * 0
+                loss_bbox_xy = bbox_pred.sum() * 0
+                loss_bbox_hw = bbox_pred.sum() * 0
+
+            return loss_cls, loss_bbox, loss_iou, loss_bbox_xy, loss_bbox_hw
+
+        else:
+            # after warm_up, just switch back to the original DETR like assign and loss
+            (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
+             num_total_pos, num_total_neg) = cls_reg_targets
+            labels = torch.cat(labels_list, 0)
+            label_weights = torch.cat(label_weights_list, 0)
+            bbox_targets = torch.cat(bbox_targets_list, 0)
+            bbox_weights = torch.cat(bbox_weights_list, 0)
+
+            # classification loss
+            cls_scores = cls_scores.reshape(-1, self.cls_out_channels)
+            # construct weighted avg_factor to match with the official DETR repo
+            cls_avg_factor = num_total_pos * 1.0 + \
+                num_total_neg * self.bg_cls_weight
+            if self.sync_cls_avg_factor:
+                cls_avg_factor = reduce_mean(
+                    cls_scores.new_tensor([cls_avg_factor]))
+            cls_avg_factor = max(cls_avg_factor, 1)
+
+            loss_cls = self.loss_cls2(
+                cls_scores, labels, label_weights, avg_factor=cls_avg_factor)
+
+            reg_avg_factor = bbox_weights.new_tensor(
+                [len(torch.nonzero(bbox_weights.sum(-1) > 0, as_tuple=False).squeeze().unique())])
+            reg_avg_factor = torch.clamp(
+                reduce_mean(reg_avg_factor), min=1.).item()
+
+            # construct factors used for rescale bboxes
+            factors = []
+            for img_meta, bbox_pred in zip(img_metas, bbox_preds):
+                img_h, img_w, _ = img_meta['img_shape']
+                factor = bbox_pred.new_tensor([img_w, img_h, img_w,
+                                               img_h]).unsqueeze(0).repeat(
+                    bbox_pred.size(0), 1)
+                factors.append(factor)
+            factors = torch.cat(factors, 0)
+
+            bbox_preds = bbox_preds.reshape(-1, 4)
+            bboxes = bbox_cxcywh_to_xyxy(bbox_preds) * factors
+            bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors
+
+            # regression IoU loss, defaultly GIoU loss
+            loss_iou = self.loss_iou(
+                bboxes, bboxes_gt, bbox_weights, avg_factor=reg_avg_factor)
+
+            # regression L1 loss
+            loss_bbox = self.loss_bbox(
+                bbox_preds, bbox_targets, bbox_weights, avg_factor=reg_avg_factor)
+            loss_bbox_xy = self.loss_bbox(
+                bbox_preds[..., :2], bbox_targets[..., :2], bbox_weights[..., :2], avg_factor=reg_avg_factor)
+            loss_bbox_hw = self.loss_bbox(
+                bbox_preds[..., 2:], bbox_targets[..., 2:], bbox_weights[..., 2:], avg_factor=reg_avg_factor)
+
+            return loss_cls, loss_bbox, loss_iou, loss_bbox_xy, loss_bbox_hw
+
+    def loss_single_dn(self,
+                       cls_scores,
+                       bbox_preds,
+                       gt_bboxes_list,
+                       gt_labels_list,
+                       gt_scores_list=None,
+                       img_metas=None,
+                       dn_metas=None,
+                       gt_bboxes_ignore_list=None,
+                       is_pseudo_label=False):
+
+        num_imgs = cls_scores.size(0)
+        cls_scores_list = [cls_scores[i] for i in range(num_imgs)]
+        bbox_preds_list = [bbox_preds[i] for i in range(num_imgs)]
+
+        # Note: do the pre-process with pseudo labels
+
+        cls_reg_targets = self.get_targets_dn(cls_scores_list, bbox_preds_list,
+                                              gt_bboxes_list, gt_labels_list,
+                                              img_metas, dn_metas, gt_bboxes_ignore_list, is_pseudo_label=is_pseudo_label)
 
         (labels_list, label_weights_list, bbox_targets_list, bbox_weights_list,
          num_total_pos, num_total_neg) = cls_reg_targets
@@ -737,7 +901,7 @@ class MetaDINODETRHead(AnchorFreeHead):
                 cls_scores.new_tensor([cls_avg_factor]))
         cls_avg_factor = max(cls_avg_factor, 1)
 
-        loss_cls = self.loss_cls(
+        loss_cls = self.loss_cls2(
             cls_scores, labels, label_weights, avg_factor=cls_avg_factor)
 
         # Compute the average number of gt boxes across all gpus, for
@@ -763,23 +927,16 @@ class MetaDINODETRHead(AnchorFreeHead):
         bboxes_gt = bbox_cxcywh_to_xyxy(bbox_targets) * factors
 
         # regression IoU loss, defaultly GIoU loss
-        # change the avg_factor of regression as the count of nonzero's bbox_weight
-        reg_avg_factor = len(torch.nonzero(
-            bbox_weights.sum(dim=-1) > 0).squeeze().unique())
-        reg_avg_factor = reduce_mean(
-            bbox_preds.new_tensor([reg_avg_factor]))
-        reg_avg_factor = max(reg_avg_factor, 1)
-
         loss_iou = self.loss_iou(
-            bboxes, bboxes_gt, bbox_weights, avg_factor=reg_avg_factor)
+            bboxes, bboxes_gt, bbox_weights, avg_factor=num_total_pos)
 
         # regression L1 loss
         loss_bbox = self.loss_bbox(
-            bbox_preds, bbox_targets, bbox_weights, avg_factor=reg_avg_factor)
+            bbox_preds, bbox_targets, bbox_weights, avg_factor=num_total_pos)
         loss_bbox_xy = self.loss_bbox(
-            bbox_preds[..., :2], bbox_targets[..., :2], bbox_weights[..., :2], avg_factor=reg_avg_factor)
+            bbox_preds[..., :2], bbox_targets[..., :2], bbox_weights[..., :2], avg_factor=num_total_pos)
         loss_bbox_hw = self.loss_bbox(
-            bbox_preds[..., 2:], bbox_targets[..., 2:], bbox_weights[..., 2:], avg_factor=reg_avg_factor)
+            bbox_preds[..., 2:], bbox_targets[..., 2:], bbox_weights[..., 2:], avg_factor=num_total_pos)
 
         return loss_cls, loss_bbox, loss_iou, loss_bbox_xy, loss_bbox_hw
 
@@ -788,10 +945,10 @@ class MetaDINODETRHead(AnchorFreeHead):
                               bbox_pred,
                               gt_bboxes,
                               gt_labels,
-                              gt_scores=None,
                               img_meta=None,
                               dn_meta=None,
-                              gt_bboxes_ignore=None):
+                              gt_bboxes_ignore=None,
+                              is_pseudo_label=False):
         """Get the dn_part learning target for a single image
         cls_score: [pad_size, cls_out_channels]
         bbox_pred: [pad_size, 4]
@@ -799,45 +956,30 @@ class MetaDINODETRHead(AnchorFreeHead):
         gt_labels: [num_gt]
 
         """
-        assert gt_scores is None, "DN Part don't apply on the unaccurate pseudo bboxes! So don't provide the soft gt_scores!"
-        # NOTE: loss_single_dn和loss_single的区别在于这里我们不需要像loss_single一样通过get_target来获得
-        # label_target，bbox_target等，因为这里我们直接可以通过dn_meta中的原始的构造dn_part过程的信息
-        # 来获得每个object query对应的target
+
         # breakpoint()
+        # import ipdb;ipdb.set_trace()
         num_bboxes = bbox_pred.size(0)
 
-        # 从dn_meta中，构造dn_part的target
-        # single_pad: 在构造dn_part输入的时候，每张图片的padding的大小
-        # scalar: 在构造dn_part输入的时候的dn_groups
-        # single_pad: 每张图片的gt_label的padding的大小，这个single_pad包括补齐batch data
-        # 和在后面padding一份positive和negative的样本
-        # scalar: dn_groups, 就是single_pad的重复的次数
-        single_pad, scalar = self.prep_for_dn(dn_meta)
+        single_pad, scalar = self.prep_for_dn(
+            dn_meta, is_pseudo_label=is_pseudo_label)
         # import ipdb; ipdb.set_trace()
         assert num_bboxes == single_pad * \
             scalar, "The dn_part object query number is incorrect, plz check!"
 
         if len(gt_labels) > 0:
             # gt_labels: cls labels for a single image [num_gt,]
-            # 注意: torch.range(a, b)会包含b
             t = torch.arange(0, len(gt_labels)).long().cuda()
             t = t.unsqueeze(0).repeat(scalar, 1)
             # tgt_idx: [num_gt x dn_groups] from the padding_size = single_pad x dn_groups
             tgt_idx = t.flatten()
-            # output_idx相当于是正样本的索引即: pos_inds, 在一张图片里面的索引，因为一张图片padding后的query数量
-            # 是padding size，这个相当于在padding size中的索引
-            # tgt_idx相当于是正样本对应的gt的索引即: assigned_gt_inds，还不是对应的gt_labels
+
             output_idx = (torch.tensor(range(scalar)) *
                           single_pad).long().cuda().unsqueeze(1) + t
             output_idx = output_idx.flatten()
         else:
             output_idx = tgt_idx = torch.tensor([]).long().cuda()
 
-        # 每个gt_labels的一个dn_groups中，前single_pad // 2 是正样本，后single_pad // 2是负样本
-        # NOTE: 注意这里的single_pad和dn_component中的prepare_for_cdn的single_pad是不一样的
-        # 前者是后者的两倍
-
-        # 按照mmdetection的格式，仿照get_target_single，处理每张图片的target
         pos_inds = output_idx
         neg_inds = output_idx + single_pad // 2
 
@@ -848,8 +990,15 @@ class MetaDINODETRHead(AnchorFreeHead):
         # label targets
         labels = gt_labels.new_full(
             (single_pad * scalar,), self.num_classes, dtype=torch.long)
-        labels[output_idx] = gt_labels[tgt_idx].long()
-        label_weights = gt_labels.new_ones(single_pad * scalar)
+        labels[pos_inds] = gt_labels[pos_assigned_gt_inds].long()
+
+        # Note: becareful there is no gt bbox situation!!!
+        if pos_inds.size(0) > 0:
+            # There is some gt labels in this image
+            label_weights = gt_labels.new_ones(single_pad * scalar)
+        else:
+            # There is no gt label in this image, don't calcualte this loss
+            label_weights = gt_labels.new_zeros(single_pad * scalar)
 
         # bbox_targets
         bbox_targets = torch.zeros_like(bbox_pred)
@@ -857,9 +1006,6 @@ class MetaDINODETRHead(AnchorFreeHead):
         bbox_weights[pos_inds] = 1.0
         img_h, img_w, _ = img_meta['img_shape']
 
-        # DETR regress the relative position of boxes (cxcywh) in the image.
-        # Thus the learning target should be normalized by the image size, also
-        # the box format should be converted from defaultly x1y1x2y2 to cxcywh.
         factor = bbox_pred.new_tensor([img_w, img_h, img_w,
                                        img_h]).unsqueeze(0)
         pos_gt_bboxes_normalized = pos_gt_bboxes / factor
@@ -868,6 +1014,35 @@ class MetaDINODETRHead(AnchorFreeHead):
         return (labels, label_weights, bbox_targets, bbox_weights, pos_inds,
                 neg_inds)
 
+    def get_targets_dn(self,
+                       cls_scores_list,
+                       bbox_preds_list,
+                       gt_bboxes_list,
+                       gt_labels_list,
+                       img_metas,
+                       dn_metas,
+                       gt_bboxes_ignore_list=None,
+                       is_pseudo_label=False):
+        """Get targets for batched images of denosing part.
+        Note in the 
+        """
+        assert gt_bboxes_ignore_list is None, \
+            'Only supports for gt_bboxes_ignore setting to None.'
+        num_imgs = len(cls_scores_list)
+        gt_bboxes_ignore_list = [
+            gt_bboxes_ignore_list for _ in range(num_imgs)
+        ]
+
+        (labels_list, label_weights_list, bbox_targets_list,
+         bbox_weights_list, pos_inds_list, neg_inds_list) = multi_apply(
+            self._get_target_single_dn, cls_scores_list, bbox_preds_list,
+            gt_bboxes_list, gt_labels_list, img_metas, dn_metas, gt_bboxes_ignore_list, is_pseudo_label=is_pseudo_label)
+
+        num_total_pos = sum((inds.numel() for inds in pos_inds_list))
+        num_total_neg = sum((inds.numel() for inds in neg_inds_list))
+        return (labels_list, label_weights_list, bbox_targets_list,
+                bbox_weights_list, num_total_pos, num_total_neg)
+
     def get_targets(self,
                     cls_scores_list,
                     bbox_preds_list,
@@ -875,9 +1050,7 @@ class MetaDINODETRHead(AnchorFreeHead):
                     gt_labels_list,
                     gt_scores_list=None,
                     img_metas=None,
-                    dn_metas=None,
-                    gt_bboxes_ignore_list=None,
-                    decouple=False):
+                    gt_bboxes_ignore_list=None):
         """"Compute regression and classification targets for a batch image.
 
         Outputs from a single decoder layer of a single feature level are used.
@@ -918,28 +1091,38 @@ class MetaDINODETRHead(AnchorFreeHead):
         gt_bboxes_ignore_list = [
             gt_bboxes_ignore_list for _ in range(num_imgs)
         ]
+
+        # Note: we use the gt_score to judge whether it's pseudo bboxes
+        # or gt bboxes
         if gt_scores_list is None:
             gt_scores_list = [
                 gt_scores_list for _ in range(num_imgs)
             ]
 
-        if dn_metas[0] is None:
-            # only consider decouple the classification label and regression in the object query
-            # learning, not the dn_part
+        if self.in_warm_up:
+            # Note: in warm_up stage, we apply the TOOD stype assigner to do one-to-many assign
+            (labels_list, label_weights_list, bbox_targets_list,
+             bbox_weights_list, norm_alignment_metrics_list, pos_inds_list, neg_inds_list) = multi_apply(
+                self._get_target_single, cls_scores_list, bbox_preds_list,
+                gt_bboxes_list, gt_labels_list, gt_scores_list, img_metas, gt_bboxes_ignore_list)
+
+            # return the assigned results
+            num_total_pos = sum((inds.numel() for inds in pos_inds_list))
+            num_total_neg = sum((inds.numel() for inds in neg_inds_list))
+            return (labels_list, label_weights_list, bbox_targets_list,
+                    bbox_weights_list, norm_alignment_metrics_list, num_total_pos, num_total_neg)
+
+        else:
+            # Note: after warm_up, we apply the original DETR stype assigner to do one-to-one assign
             (labels_list, label_weights_list, bbox_targets_list,
              bbox_weights_list, pos_inds_list, neg_inds_list) = multi_apply(
                 self._get_target_single, cls_scores_list, bbox_preds_list,
-                gt_bboxes_list, gt_labels_list, gt_scores_list, img_metas, gt_bboxes_ignore_list, decouple=decouple)
-        else:
-            # import ipdb;ipdb.set_trace()
-            (labels_list, label_weights_list, bbox_targets_list,
-             bbox_weights_list, pos_inds_list, neg_inds_list) = multi_apply(
-                self._get_target_single_dn, cls_scores_list, bbox_preds_list,
-                gt_bboxes_list, gt_labels_list, gt_scores_list, img_metas, dn_metas, gt_bboxes_ignore_list)
-        num_total_pos = sum((inds.numel() for inds in pos_inds_list))
-        num_total_neg = sum((inds.numel() for inds in neg_inds_list))
-        return (labels_list, label_weights_list, bbox_targets_list,
-                bbox_weights_list, num_total_pos, num_total_neg)
+                gt_bboxes_list, gt_labels_list, gt_scores_list, img_metas, gt_bboxes_ignore_list)
+
+            num_total_pos = sum((inds.numel() for inds in pos_inds_list))
+            num_total_neg = sum((inds.numel() for inds in neg_inds_list))
+            return (labels_list, label_weights_list, bbox_targets_list,
+                    bbox_weights_list, num_total_pos, num_total_neg)
 
     def _get_target_single(self,
                            cls_score,
@@ -948,8 +1131,7 @@ class MetaDINODETRHead(AnchorFreeHead):
                            gt_labels,
                            gt_scores=None,
                            img_meta=None,
-                           gt_bboxes_ignore=None,
-                           decouple=False):
+                           gt_bboxes_ignore=None):
         """"Compute regression and classification targets for one image.
 
         Outputs from a single decoder layer of a single feature level are used.
@@ -978,67 +1160,122 @@ class MetaDINODETRHead(AnchorFreeHead):
                 - pos_inds (Tensor): Sampled positive indices for each image.
                 - neg_inds (Tensor): Sampled negative indices for each image.
         """
-        # import ipdb;ipdb.set_trace()
-
         # breakpoint()
         num_bboxes = bbox_pred.size(0)
-        # assigner and sampler
-        assign_result = self.assigner.assign(bbox_pred, cls_score, gt_bboxes,
-                                             gt_labels, img_meta,
-                                             gt_bboxes_ignore)
 
-        sampling_result = self.sampler.sample(assign_result, bbox_pred,
-                                              gt_bboxes)
-        pos_inds = sampling_result.pos_inds
-        neg_inds = sampling_result.neg_inds
+        if self.in_warm_up:
+            # in warm_up, use TOOD stype one-to-many assigner
+            assign_result = self.assigner1.assign(bbox_pred, cls_score.sigmoid(), gt_bboxes,
+                                                  gt_labels, img_meta,
+                                                  gt_bboxes_ignore)
+            assign_ious = assign_result.max_overlaps
+            # make the unmatched Iou to 0
+            INF = 100000000
+            assign_ious[assign_ious == -INF] = 0
+            assign_metrics = assign_result.assign_metrics
 
-        # label targets
-        labels = gt_bboxes.new_full((num_bboxes, ),
-                                    self.num_classes,
-                                    dtype=torch.long)
-        labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds].long()
+            sampling_result = self.sampler.sample(assign_result, bbox_pred,
+                                                  gt_bboxes)
+            pos_inds = sampling_result.pos_inds
+            neg_inds = sampling_result.neg_inds
 
-        label_weights = gt_bboxes.new_ones(num_bboxes)
+            # label targets
+            labels = gt_bboxes.new_full((num_bboxes, ),
+                                        self.num_classes,
+                                        dtype=torch.long)
+            label_weights = gt_bboxes.new_ones(num_bboxes)
 
-        # bbox targets
-        bbox_targets = torch.zeros_like(bbox_pred)
-        bbox_weights = torch.zeros_like(bbox_pred)
+            # bbox targets
+            bbox_targets = torch.zeros_like(bbox_pred)
+            bbox_weights = torch.zeros_like(bbox_pred)
 
-        # Note: if there is the gt_scores, means we will use the gt_scores
-        # as the weight of the classification loss and regression loss
-        if gt_scores is not None:
-            # change the positive object regression weight to the soft scores
-            # according to the score of the pseudo labels
-            valid_inds = torch.nonzero(
-                gt_scores[sampling_result.pos_assigned_gt_inds] > 0.5).squeeze().unique()
-            valid_pos_inds = pos_inds[valid_inds]
-            bbox_weights[valid_pos_inds] = 1.0
+            # point-based
+            img_h, img_w, _ = img_meta['img_shape']
+
+            # DETR regress the relative position of boxes (cxcywh) in the image.
+            # Thus the learning target should be normalized by the image size, also
+            # the box format should be converted from defaultly x1y1x2y2 to cxcywh.
+            factor = bbox_pred.new_tensor(
+                [img_w, img_h, img_w, img_h]).unsqueeze(0)
+            pos_gt_bboxes_normalized = sampling_result.pos_gt_bboxes / factor
+            pos_gt_bboxes_targets = bbox_xyxy_to_cxcywh(
+                pos_gt_bboxes_normalized)
+
+            bbox_targets[pos_inds, :] = pos_gt_bboxes_targets
+
+            labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds].long()
+
+            # take the instance normalization for each gt, make the largest alignment metric
+            # score of the assigned proposal equals to the largest IoU
+            norm_alignment_metrics = assign_metrics.new_zeros(labels.shape[0])
+            pos_assigned_gt_inds = sampling_result.pos_assigned_gt_inds
+            for gt_inds in torch.unique(pos_assigned_gt_inds):
+                gt_class_inds = pos_inds[pos_assigned_gt_inds == gt_inds]
+                pos_alignment_metrics = assign_metrics[gt_class_inds]
+                pos_ious = assign_ious[gt_class_inds]
+                pos_norm_alignment_metrics = pos_alignment_metrics / \
+                    (pos_alignment_metrics.max() + 10e-8) * pos_ious.max()
+                norm_alignment_metrics[gt_class_inds] = pos_norm_alignment_metrics
+
+            # make the bbox_weights to the alignment metrics
+            # Note: when in the warm-up stage, we don't decouple the classificaiton and regression
+            bbox_weights[pos_inds,
+                         :] = norm_alignment_metrics[pos_inds].unsqueeze(-1)
+
+            return (labels, label_weights, bbox_targets, bbox_weights, norm_alignment_metrics, pos_inds,
+                    neg_inds)
+
         else:
+            # after warm_up, we take the original DETR stype assignment
+            # assigner and sampler
+            assign_result = self.assigner2.assign(bbox_pred, cls_score, gt_bboxes,
+                                                  gt_labels, img_meta,
+                                                  gt_bboxes_ignore)
+            sampling_result = self.sampler.sample(assign_result, bbox_pred,
+                                                  gt_bboxes)
+            pos_inds = sampling_result.pos_inds
+            neg_inds = sampling_result.neg_inds
+
+            # label targets
+            labels = gt_bboxes.new_full((num_bboxes, ),
+                                        self.num_classes,
+                                        dtype=torch.long)
+            labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds].long()
+
+            label_weights = gt_bboxes.new_ones(num_bboxes)
+
+            # bbox targets
+            bbox_targets = torch.zeros_like(bbox_pred)
+            bbox_weights = torch.zeros_like(bbox_pred)
+
             bbox_weights[pos_inds] = 1.0
 
-        img_h, img_w, _ = img_meta['img_shape']
+            img_h, img_w, _ = img_meta['img_shape']
 
-        # DETR regress the relative position of boxes (cxcywh) in the image.
-        # Thus the learning target should be normalized by the image size, also
-        # the box format should be converted from defaultly x1y1x2y2 to cxcywh.
-        factor = bbox_pred.new_tensor(
-            [img_w, img_h, img_w, img_h]).unsqueeze(0)
-        pos_gt_bboxes_normalized = sampling_result.pos_gt_bboxes / factor
-        pos_gt_bboxes_targets = bbox_xyxy_to_cxcywh(pos_gt_bboxes_normalized)
-        # the regression target is the same no matter decouple or not, cause we can use the weight to adjust the loss
-        bbox_targets[pos_inds] = pos_gt_bboxes_targets
-        return (labels, label_weights, bbox_targets, bbox_weights, pos_inds,
-                neg_inds)
+            # DETR regress the relative position of boxes (cxcywh) in the image.
+            # Thus the learning target should be normalized by the image size, also
+            # the box format should be converted from defaultly x1y1x2y2 to cxcywh.
+            factor = bbox_pred.new_tensor(
+                [img_w, img_h, img_w, img_h]).unsqueeze(0)
+            pos_gt_bboxes_normalized = sampling_result.pos_gt_bboxes / factor
+            pos_gt_bboxes_targets = bbox_xyxy_to_cxcywh(
+                pos_gt_bboxes_normalized)
+            bbox_targets[pos_inds] = pos_gt_bboxes_targets
+            return (labels, label_weights, bbox_targets, bbox_weights, pos_inds,
+                    neg_inds)
 
     # over-write because img_metas are needed as inputs for bbox_head.
     def forward_train(self,
                       x,
                       img_metas,
                       gt_bboxes,
-                      gt_labels=None,
+                      gt_labels,
+                      gt_scores=None,
+                      gt_caption=None,
                       gt_bboxes_ignore=None,
                       proposal_cfg=None,
-                      gt_caption=None,
+                      curr_step=None,
+                      is_pseudo_label=False,
                       **kwargs):
         """Forward function for training mode.
 
@@ -1058,18 +1295,21 @@ class MetaDINODETRHead(AnchorFreeHead):
         Returns:
             dict[str, Tensor]: A dictionary of loss components.
         """
-        # breakpoint()
+        if curr_step is not None:
+            # set the warm_up state
+            if curr_step < self.warm_up_step:
+                self.in_warm_up = True
+            else:
+                self.in_warm_up = False
+
         # prepare the dn_components
-        # Note: need check whether there exist gt boxes in this batched data
-        # if the whole batch has no gt box or gt label, we do't do the dn task
-        num_valid_gts = [gt_bbox.size(0) for gt_bbox in gt_bboxes]
-        if self.dn_number > 0 and max(num_valid_gts) > 0:
+        if self.dn_number > 0:
             # prepare the target
+
             # NOTE: need the labels and boxes as the list of each images
             targets = dict()
             targets['labels'] = gt_labels
-            # becareful when prepare the dn_components, the gt bboxes needs to
-            # be normalized with corresponding w, h, in the cx, cy, w, h format
+
             normalized_boxes = []
             for img_meta, gt_bbox in zip(img_metas, gt_bboxes):
                 img_h, img_w, _ = img_meta['img_shape']
@@ -1081,23 +1321,24 @@ class MetaDINODETRHead(AnchorFreeHead):
 
             targets['boxes'] = normalized_boxes
 
-            input_query_label, input_query_bbox, attn_mask, dn_meta = prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
-                                                                                      training=True, num_queries=self.num_query, num_classes=self.num_classes,
-                                                                                      hidden_dim=self.embed_dims, label_enc=self.label_enc)
+            input_query_label, input_query_bbox, attn_mask, dn_meta = prepare_for_cdn_plus(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
+                                                                                           training=True, num_queries=self.num_query, num_classes=self.num_classes,
+                                                                                           hidden_dim=self.embed_dims, label_enc=self.label_enc)
         else:
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
 
         assert proposal_cfg is None, '"proposal_cfg" must be None'
         # change the forward method's parameter
+        # import ipdb;ipdb.set_trace()
         outs, caption_loss = self(x, img_metas, input_query_label,
-                                  input_query_bbox, attn_mask, dn_meta, gt_caption, training=True)
-        # breakpoint()
-        # TODO: when calculate the loss, need consider the dn part loss seperately
-
-        loss_inputs = outs + (gt_bboxes, gt_labels)
-        losses = self.loss(*loss_inputs, img_metas=img_metas,
-                           dn_metas=dn_meta, gt_bboxes_ignore=gt_bboxes_ignore, caption_loss=caption_loss)
-
+                                  input_query_bbox, attn_mask, dn_meta, gt_caption=gt_caption, training=True)
+        # Note: gt_scores is consider when we use pseudo bbox
+        if gt_scores is None:
+            loss_inputs = outs + (gt_bboxes, gt_labels)
+        else:
+            loss_inputs = outs + (gt_bboxes, gt_labels, gt_scores)
+        losses = self.loss(*loss_inputs, img_metas=img_metas, dn_metas=dn_meta,
+                           gt_bboxes_ignore=gt_bboxes_ignore, is_pseudo_label=is_pseudo_label, caption_loss=caption_loss)
         return losses
 
     @force_fp32(apply_to=('all_cls_scores_list', 'all_bbox_preds_list'))
@@ -1109,7 +1350,8 @@ class MetaDINODETRHead(AnchorFreeHead):
                    dn_cls_scores,
                    dn_bbox_preds,
                    img_metas,
-                   rescale=False):
+                   rescale=False,
+                   for_pseudo_label=False):
         """Transform network outputs for a batch into bbox predictions.
 
         Args:
@@ -1145,7 +1387,8 @@ class MetaDINODETRHead(AnchorFreeHead):
             scale_factor = img_metas[img_id]['scale_factor']
             proposals = self._get_bboxes_single(cls_score, bbox_pred,
                                                 img_shape, scale_factor,
-                                                rescale)
+                                                rescale,
+                                                for_pseudo_label=for_pseudo_label)
             result_list.append(proposals)
         return result_list
 
@@ -1154,7 +1397,8 @@ class MetaDINODETRHead(AnchorFreeHead):
                            bbox_pred,
                            img_shape,
                            scale_factor,
-                           rescale=False):
+                           rescale=False,
+                           for_pseudo_label=False):
         """Transform outputs from the last decoder layer into bbox predictions
         for each image.
 
@@ -1180,20 +1424,45 @@ class MetaDINODETRHead(AnchorFreeHead):
                 - det_labels: Predicted labels of the corresponding box with \
                     shape [num_query].
         """
+        # import ipdb; ipdb.set_trace()
         assert len(cls_score) == len(bbox_pred)
         max_per_img = self.test_cfg.get('max_per_img', self.num_query)
         # exclude background
-        if self.loss_cls.use_sigmoid:
+        if self.loss_cls2.use_sigmoid:
             cls_score = cls_score.sigmoid()
-            scores, indexes = cls_score.view(-1).topk(max_per_img)
-            det_labels = indexes % self.num_classes
-            bbox_index = indexes // self.num_classes
-            bbox_pred = bbox_pred[bbox_index]
+
+            if self.in_warm_up or for_pseudo_label:
+                # import pdb; pdb.set_trace()
+                nms = dict(type='nms', iou_threshold=0.6, split_thr=-1)
+                score_thr = 0.01
+                num_class = cls_score.shape[-1]
+                # append the background class
+                padding = cls_score.new_zeros(cls_score.shape[0], 1)
+                cls_score = torch.cat([cls_score, padding], dim=1)
+
+                bbox_pred = bbox_cxcywh_to_xyxy(bbox_pred)
+                bbox_pred[:, 0::2] = bbox_pred[:, 0::2] * img_shape[1]
+                bbox_pred[:, 1::2] = bbox_pred[:, 1::2] * img_shape[0]
+                bbox_pred[:, 0::2].clamp_(min=0, max=img_shape[1])
+                bbox_pred[:, 1::2].clamp_(min=0, max=img_shape[0])
+
+                if rescale:
+                    bbox_pred /= bbox_pred.new_tensor(scale_factor)
+                # apply multi-class nms to filter the duplicate detection boxes
+                det_bboxes, det_labels = multiclass_nms(
+                    bbox_pred,
+                    cls_score,
+                    score_thr,
+                    nms,
+                    max_per_img)
+                return det_bboxes, det_labels
+            else:
+                scores, indexes = cls_score.view(-1).topk(max_per_img)
+                det_labels = indexes % self.num_classes
+                bbox_index = indexes // self.num_classes
+                bbox_pred = bbox_pred[bbox_index]
         else:
-            scores, det_labels = F.softmax(cls_score, dim=-1)[..., :-1].max(-1)
-            scores, bbox_index = scores.topk(max_per_img)
-            bbox_pred = bbox_pred[bbox_index]
-            det_labels = det_labels[bbox_index]
+            NotImplementedError
 
         det_bboxes = bbox_cxcywh_to_xyxy(bbox_pred)
         det_bboxes[:, 0::2] = det_bboxes[:, 0::2] * img_shape[1]
@@ -1206,7 +1475,7 @@ class MetaDINODETRHead(AnchorFreeHead):
 
         return det_bboxes, det_labels
 
-    def simple_test_bboxes(self, feats, img_metas, rescale=False):
+    def simple_test_bboxes(self, feats, img_metas, rescale=False, curr_step=None, for_pseudo_label=False):
         """Test det bboxes without test-time augmentation.
 
         Args:
@@ -1223,9 +1492,17 @@ class MetaDINODETRHead(AnchorFreeHead):
                 The shape of the second tensor in the tuple is ``labels``
                 with shape (n,)
         """
+        # import ipdb;ipdb.set_trace()
+        if curr_step is not None:
+            if curr_step <= self.warm_up_step:
+                self.in_warm_up = True
+            else:
+                self.in_warm_up = False
+
         # forward of this head requires img_metas
         outs, caption = self.forward(feats, img_metas)
-        results_list = self.get_bboxes(*outs, img_metas, rescale=rescale)
+        results_list = self.get_bboxes(
+            *outs, img_metas, rescale=rescale, for_pseudo_label=for_pseudo_label)
         return results_list
 
     def forward_onnx(self, feats, img_metas):
@@ -1333,7 +1610,7 @@ class MetaDINODETRHead(AnchorFreeHead):
             batch_size, max_per_img)
 
         # supports dynamical batch inference
-        if self.loss_cls.use_sigmoid:
+        if self.loss_cls2.use_sigmoid:
             cls_scores = cls_scores.sigmoid()
             scores, indexes = cls_scores.view(batch_size, -1).topk(
                 max_per_img, dim=1)

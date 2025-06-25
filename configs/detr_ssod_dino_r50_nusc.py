@@ -1,5 +1,5 @@
 _base_ = [
-    "ssod_dino_r50_nusc_12k.py",
+    "ssod_dino_r50_nusc_20k.py",
 ]
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -18,7 +18,7 @@ train_pipeline = [
                 multiscale_mode='value',
                 keep_ratio=True
             ),
-            dict(type="RandFlip", flip_ratio=0.5),
+            dict(type="RandFlip", flip_ratio=0.0),
             dict(
                 type="OneOf",
                 transforms=[
@@ -71,7 +71,7 @@ strong_pipeline = [
                 multiscale_mode='value',
                 keep_ratio=True
             ),
-            dict(type="RandFlip", flip_ratio=0.5),
+            dict(type="RandFlip", flip_ratio=0.0),
             dict(
                 type="ShuffledSequential",
                 transforms=[
@@ -147,7 +147,7 @@ weak_pipeline = [
                 multiscale_mode='value',
                 keep_ratio=True
             ),
-            dict(type="RandFlip", flip_ratio=0.5),
+            dict(type="RandFlip", flip_ratio=0.0),
         ],
         record=True,
     ),
@@ -246,8 +246,7 @@ custom_hooks = [
     dict(type="MeanTeacher", momentum=0.999, interval=1, warm_up=0),
 
 ]
-evaluation = dict(type="SubModulesDistEvalHook",
-                  interval=2000, save_best='auto')
+evaluation = dict(type="SubModulesDistEvalHook", interval=2000)
 lr_config = dict(step=[12000, 16000])
 runner = dict(_delete_=True, type="IterBasedRunner", max_iters=18000)
 checkpoint_config = dict(by_epoch=False, interval=2000,

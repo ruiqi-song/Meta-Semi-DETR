@@ -3,12 +3,12 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-21 19:31:53
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-23 22:31:31
-FilePath: /MetaSemiDetr/3rdparty/mmdetection/configs/_base_/datasets/coco_detection.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 10:25:45
+FilePath: /Meta-Semi-DETR/3rdparty/mmdetection/configs/_base_/datasets/coco_detection.py
 Copyright 2025 by Inc, All Rights Reserved. 
 2025-06-21 19:31:53
 """
@@ -18,7 +18,7 @@ dataset_type = 'CocoDataset'
 
 def __get_data_root():
     import os
-    root_path = '/file_system/vepfs/public_data/uniscene/coco2017/'
+    root_path = './dataset/coco2017/'
     return root_path
 
 

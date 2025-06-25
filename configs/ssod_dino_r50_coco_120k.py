@@ -3,11 +3,11 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-21 20:20:12
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-24 19:54:13
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 10:08:50
 FilePath: /Meta-Semi-DETR/configs/ssod_dino_r50_coco_120k.py
 Copyright 2025 by Inc, All Rights Reserved. 
 2025-06-21 20:20:12
@@ -128,8 +128,7 @@ test_pipeline = [
             dict(type='Collect', keys=['img'])
         ])
 ]
-# data_dir = '/file_system/nas/algorithm/ruiqi.song/helios/data/coco2017'
-data_dir = '/file_system/vepfs/public_data/uniscene/coco2017/'
+data_dir = './dataset/coco2017'
 caption_label_dir = 'captions_coco'
 
 data = dict(
@@ -163,3 +162,5 @@ lr_config = dict(policy='step', step=[120000, 160000])
 runner = dict(type="IterBasedRunner", max_iters=180000)
 find_unused_parameters = True
 evaluation = dict(interval=4000, metric='bbox', save_best='auto')
+exp_dir = './tlog_exps'
+work_dir = "${exp_dir}/metasemidetr/${cfg_name}/${percent}/${fold}"

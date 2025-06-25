@@ -3,17 +3,17 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-24 00:01:55
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-24 19:52:19
-FilePath: /Meta-Semi-DETR/configs/matedetr_ssod_dino_r50_nusc_12k.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 10:32:02
+FilePath: /Meta-Semi-DETR/configs/metadetr_ssod_dino_r50_nusc_20k.py
 Copyright 2025 by Inc, All Rights Reserved. 
 2025-06-24 00:01:55
 """
-_base_ = "matedetr_ssod_dino_r50_nusc.py"
-data_dir = '/file_system/nas/algorithm/ruiqi.song/helios/data/nuscenes_coco'
+_base_ = "metadetr_ssod_dino_r50_nusc.py"
+data_dir = './dataset/nuscenes_coco'
 caption_label_dir = 'captions_ovis'
 data = dict(
     samples_per_gpu=5,
@@ -62,8 +62,8 @@ custom_hooks = [
 
 runner = dict(_delete_=True, type="IterBasedRunner", max_iters=20000)
 
-exp_dir = '/file_system/nas/algorithm/ruiqi.song/helios/models/matesemidetr/tlog_exps'
-work_dir = "${exp_dir}/matesemidetr/${cfg_name}/${percent}/${fold}"
+exp_dir = './tlog_exps'
+work_dir = "${exp_dir}/metasemidetr/${cfg_name}/${percent}/${fold}"
 log_config = dict(
     interval=50,
     hooks=[
@@ -73,13 +73,3 @@ log_config = dict(
              )
     ],
 )
-optimizer = dict(
-    type='AdamW',
-    lr=0.00005,
-    weight_decay=0.0001,
-    paramwise_cfg=dict(
-        bypass_duplicate=True,
-        custom_keys={'backbone': dict(lr_mult=0.1, decay_mult=1.0)}
-    )
-)
-find_unused_parameters = True

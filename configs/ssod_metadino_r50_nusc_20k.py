@@ -3,12 +3,12 @@
 """
 brief:
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-23 23:45:22
 Description:
-LastEditors: knightdby
-LastEditTime: 2025-06-24 08:58:03
-FilePath: /MetaSemiDetr/configs/ssod_matedino_r50_nusc_12k.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 10:10:13
+FilePath: /Meta-Semi-DETR/configs/ssod_metadino_r50_nusc_20k.py
 Copyright 2025 by Inc, All Rights Reserved.
 2025-06-23 23:45:22
 """
@@ -58,8 +58,7 @@ model = dict(
         loss_caption=dict(type='CaptionLoss',
                           itc_loss_weight=0.5,
                           itm_loss_weight=0.3,
-                          lm_loss_weight=0.5),
-        caption_pretrain=False
+                          lm_loss_weight=0.5)
     ),
     # training and testing settings
     train_cfg=dict(
@@ -135,7 +134,7 @@ test_pipeline = [
             dict(type='Collect', keys=['img'])
         ])
 ]
-data_dir = '/file_system/nas/algorithm/ruiqi.song/helios/data/nuscenes_coco'
+data_dir = './dataset/nuscenes_coco'
 caption_label_dir = 'captions_ovis'
 
 data = dict(
@@ -174,7 +173,8 @@ optimizer = dict(
 optimizer_config = dict(grad_clip=dict(max_norm=0.1, norm_type=2))
 # learning policy
 lr_config = dict(policy='step', step=[12000, 16000])
-runner = dict(type="IterBasedRunner", max_iters=18000)
+runner = dict(type="IterBasedRunner", max_iters=20000)
 find_unused_parameters = True
 evaluation = dict(interval=2000, metric='bbox', save_best='auto')
-work_dir = "./tlog_exps/test_coco/${cfg_name}/${percent}/${fold}"
+exp_dir = './tlog_exps'
+work_dir = "${exp_dir}/metasemidetr/${cfg_name}/${percent}/${fold}"

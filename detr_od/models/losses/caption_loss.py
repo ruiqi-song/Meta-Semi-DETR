@@ -3,10 +3,10 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-01-02 11:14:52
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-23 09:38:40
 FilePath: /MetaSemiDetr/detr_od/models/losses/caption_loss.py
 Copyright 2025 by Inc, All Rights Reserved. 

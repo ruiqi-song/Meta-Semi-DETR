@@ -2,12 +2,12 @@
 ###
 # @brief:
 # @Version: v1.0.0
-# @Author: knightdby  && knightdby@163.com
+# @Author: Anonymous  && Anonymous@com
 # @Date: 2025-03-07 14:28:02
 # @Description:
-# @LastEditors: knightdby
-# @LastEditTime: 2025-06-24 09:07:27
-# @FilePath: /MetaSemiDetr/dist_train.sh
+# @LastEditors: Anonymous
+# @LastEditTime: 2025-06-25 10:34:00
+# @FilePath: /Meta-Semi-DETR/dist_train.sh
 # Copyright 2025  by Inc, All Rights Reserved.
 # 2025-03-07 14:28:02
 ###
@@ -42,10 +42,7 @@ get_random_port ${rangeStart} ${rangeEnd}
 # kill -9 $(lsof -t /dev/nvidia*)
 unset LD_LIBRARY_PATH
 source ~/anaconda3/etc/profile.d/conda.sh
-source ~/Lib/anaconda3/etc/profile.d/conda.sh
-source /file_system/vepfs/algorithm/ruiqi.song/anaconda3/etc/profile.d/conda.sh
 
-mkdir -p $WORK_DIR
 PERCENT=$2
 # FOLD=$3
 FOLD=5

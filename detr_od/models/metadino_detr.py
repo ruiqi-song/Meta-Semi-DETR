@@ -3,10 +3,10 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-01-02 10:02:03
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-23 09:29:01
 FilePath: /MetaSemiDetr/detr_od/models/adapter_dino.py
 Copyright 2025 by Inc, All Rights Reserved. 

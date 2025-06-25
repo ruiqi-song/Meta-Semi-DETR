@@ -3,10 +3,10 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-21 19:31:53
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-23 22:11:10
 FilePath: /MetaSemiDetr/detr_od/models/dense_heads/__init__.py
 Copyright 2025 by Inc, All Rights Reserved. 
@@ -14,5 +14,5 @@ Copyright 2025 by Inc, All Rights Reserved.
 """
 from .dino_detr_head import DINODETRHead
 from .dino_detr_ssod_head import DINODETRSSODHead
-from .matedino_detr_head import MetaDINODETRHead
-from .matedino_detr_ssod_head import MetaDINODETRSSODHead
+from .metadino_detr_head import MetaDINODETRHead
+from .metadino_detr_ssod_head import MetaDINODETRSSODHead

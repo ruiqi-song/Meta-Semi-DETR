@@ -3,10 +3,10 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-06-23 23:41:18
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-23 23:44:10
 FilePath: /MetaSemiDetr/detr_ssod/datasets/nusc_coco.py
 Copyright 2025 by Inc, All Rights Reserved. 

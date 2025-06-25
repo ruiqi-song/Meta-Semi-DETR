@@ -3,10 +3,10 @@
 """
 brief: 
 Version: v0.0.1
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2024-12-31 16:42:35
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-24 09:01:28
 FilePath: /MetaSemiDetr/detr_od/models/utils/transformer_mate.py
 Copyright 2025 by Inc, All Rights Reserved. 

@@ -3,17 +3,17 @@
 """
 brief: 
 Version: v1.0.0
-Author: knightdby  && knightdby@163.com
+Author: Anonymous  && Anonymous@com
 Date: 2025-03-07 15:51:38
 Description: 
-LastEditors: knightdby
-LastEditTime: 2025-06-23 23:03:19
-FilePath: /MetaSemiDetr/configs/detr_ssod_dino_r50_coco_120k.py
+LastEditors: Anonymous
+LastEditTime: 2025-06-25 10:26:23
+FilePath: /Meta-Semi-DETR/configs/detr_ssod_dino_r50_coco_120k.py
 Copyright 2025  by Inc, All Rights Reserved. 
 2025-03-07 15:51:38
 """
 _base_ = "detr_ssod_dino_r50_coco.py"
-data_dir = '/file_system/vepfs/public_data/uniscene/coco2017/'
+data_dir = './dataset/coco2017'
 caption_label_dir = 'captions_coco'
 
 data = dict(
@@ -61,10 +61,10 @@ custom_hooks = [
     dict(type='StepRecord', normalize=False),
 ]
 
-runner = dict(_delete_=True, type="IterBasedRunner", max_iters=20000)
+runner = dict(_delete_=True, type="IterBasedRunner", max_iters=120000)
 
-
-work_dir = "work_dirs/${cfg_name}/${percent}/${fold}"
+exp_dir = './tlog_exps'
+work_dir = "${exp_dir}/metasemidetr/${cfg_name}/${percent}/${fold}"
 log_config = dict(
     interval=50,
     hooks=[
@@ -74,13 +74,3 @@ log_config = dict(
              )
     ],
 )
-optimizer = dict(
-    type='AdamW',
-    lr=0.00005,
-    weight_decay=0.0001,
-    paramwise_cfg=dict(
-        bypass_duplicate=True,
-        custom_keys={'backbone': dict(lr_mult=0.1, decay_mult=1.0)}
-    )
-)
-find_unused_parameters = True
