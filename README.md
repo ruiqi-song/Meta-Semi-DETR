@@ -142,7 +142,12 @@ pip install nuscenes-devkit
   | 5% Data |0.422 0.586 0.453 0.237 0.460 0.574 | 🔽More | [Google Drive]()|
   | 10% Data | 0.451 0.616 0.488 0.269 0.493 0.602| 🔽More | Google Drive|
 
-    <details>
+  Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
+    <p align="left">
+        <img src=./assets/eval_coco.png width="85%" style="display: inline-block; margin-right: 2%;" />
+    </p>
+
+    <details open>
 
     <summary>1% Data Details</summary>
 
@@ -182,7 +187,7 @@ pip install nuscenes-devkit
 
     </details>
 
-    <details>
+    <details open>
 
     <summary>5% Data Details</summary>
 
@@ -222,7 +227,7 @@ pip install nuscenes-devkit
 
   </details>
 
-  <details>
+  <details open>
 
   <summary>10% Data Details</summary>
 
@@ -262,11 +267,6 @@ pip install nuscenes-devkit
 
     </details>
 
-  Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
-  <p align="left">
-      <img src=./assets/eval_coco.png width="90%" style="display: inline-block; margin-right: 2%;" />
-  </p>
-
 - **NuScenes**
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
@@ -274,7 +274,12 @@ pip install nuscenes-devkit
   | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| 🔽More |[Google Drive]() |
   | 10% Data |0.329 0.591 0.330 0.062 0.270 0.453 | 🔽More |Google Drive |
 
-  <details>
+  Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting:
+  <p align="left">
+      <img src=./assets/eval_nusc.png width="85%" style="display: inline-block; margin-right: 2%;" />
+  </p>
+
+  <details open>
   <summary>1% Data Details</summary>
 
   ```ASCII
@@ -290,7 +295,7 @@ pip install nuscenes-devkit
 
   </details>
 
-    <details>
+  <details open>
 
   <summary>5% Data Details</summary>
 
@@ -306,7 +311,7 @@ pip install nuscenes-devkit
   ```
 
     </details>
-    <details>
+    <details open>
 
     <summary>10% Data Details</summary>
 
@@ -322,11 +327,6 @@ pip install nuscenes-devkit
   ```
 
     </details>
-
-  Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting.
-  <p align="left">
-      <img src=./assets/eval_nusc.png width="90%" style="display: inline-block; margin-right: 2%;" />
-  </p>
 
 # Acknowledgement
 
