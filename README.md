@@ -12,15 +12,27 @@ This repo is mostly built on top of [Semi-DETR](https://github.com/JCZ404/Semi-D
 
 # Methods
 
+## Framework
+
 <p align="center">
     <img src=./assets/framework.png width="95%" style="display: inline-block; margin-right: 2%;" />
 </p>
+
+## Highlights
+
+- This is the first work to explore how VLMs can be leveraged to distill and enhance semi-supervised object detection capabilities.
+- We focus on introducing an effective strategy for injecting semantic information, conveniently obtained from unlabeled images via VLMs, into the SSOD pipeline.
+- A semantic consistency regularization mechanism, which aligns the textual semantics derived from different augmented views, is proposed.
+- Extensive experiments on the MS-COCO benchmark demonstrate that Meta SemiDETR achieves state-of-the-art performance.
+- To verify its generalization and practicality, we build a pipeline for industrial-scale autonomous driving with prompt engineering, text generation, and semi-supervised training, evaluated on nuScenes.
+- It requires only about 34 hours of computation on a single NVIDIA L20 for text annotation without any manual involvement, which show efficiency and promising potential for real-world deployment.
+- We contribute scene-level textual descriptions for the nuScenes, which enhances its potential for advancing research in multimodal learning.
 
 # Setup
 
 <details>
 
-<summary>Installation</summary>
+<summary>Environment Installation</summary>
 
 ```bash
 # Create virtual environment
@@ -52,6 +64,8 @@ pip install yapf==0.40.1
 pip install nuscenes-devkit
 ```
 
+- Download bert-base-uncased model weight from [this link](https://huggingface.co/google-bert/bert-base-uncased) and put it under `weights` folder.
+
 </details>
 
 <details>
@@ -67,7 +81,9 @@ pip install nuscenes-devkit
   ├── val2017/
   └── annotations/
   	├── instances_train2017.json
-  	└── instances_val2017.json
+  	├── instances_val2017.json
+  	├── captions_train2017.json
+  	└── captions_val2017.json
   ```
 
 - Execute the following command to generate data set splits, or download the split files(refer to [Semi-DETR](https://github.dev/JCZ404/Semi-DETR)) from [here](https://drive.google.com/file/d/1Hq98YEU-WQXkZ6nR3t_OxuTNJKp5) and put them under `dataset/coco2017/annotations/semi_supervised/` folder:
@@ -105,8 +121,6 @@ pip install nuscenes-devkit
 
 # Training&Evaluation
 
-- Download bert-base-uncased model weight from [this link](https://huggingface.co/google-bert/bert-base-uncased) and put it under `weights/` folder.
-
 ## Training
 
 - To train model on the **COCO partial labeled data** setting:
@@ -121,7 +135,7 @@ pip install nuscenes-devkit
   bash dist_train.sh configs/metadetr_ssod_dino_r50_nusc_20k.py ${FOLD} ${PERCENT}
   ```
 
-- For example, you can run the following scripts to train metasemi-detr on 10% labeled COCO data with 8 GPUs on 1th split:
+  For example, you can run the following scripts to train metasemi-detr on 10% labeled COCO data with 8 GPUs on 1th split:
 
   ```shell script
   bash dist_train.sh configs/metadetr_ssod_dino_r50_coco_120k.py 1 10
@@ -135,12 +149,14 @@ pip install nuscenes-devkit
   python tools/test.py ${CONFIG_FILE_PATH} ${CHECKPOINT_PATH} --eval bbox
   ```
 
-- **COCO**
-  | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
+- **COCO Evaluation metrics:**
+
+  Detailed evaluation metrics for the COCO-Partial setting:
+  | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Per-class AP | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
   | 1% Data |0.351 0.512 0.373 0.192 0.378 0.481 | 🔽More | Google Drive|
   | 5% Data |0.422 0.586 0.453 0.237 0.460 0.574 | 🔽More | [Google Drive]()|
-  | 10% Data | 0.451 0.616 0.488 0.269 0.493 0.602| 🔽More | Google Drive|
+  | 10% Data |0.451 0.618 0.486 0.270 0.490 0.599| 🔽More | [Google Drive]()|
 
   Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
     <p align="left">
@@ -149,7 +165,7 @@ pip install nuscenes-devkit
 
     <details open>
 
-    <summary>1% Data Details</summary>
+    <summary>Per-class AP details with 1% data setting</summary>
 
   ```ASCII
   +---------------+-------+--------------+-------+----------------+-------+
@@ -189,7 +205,7 @@ pip install nuscenes-devkit
 
     <details open>
 
-    <summary>5% Data Details</summary>
+    <summary>Per-class AP details with 5% data setting</summary>
 
   ```ASCII
   +---------------+-------+--------------+-------+----------------+-------+
@@ -229,46 +245,48 @@ pip install nuscenes-devkit
 
   <details open>
 
-  <summary>10% Data Details</summary>
+  <summary>Per-class AP details with 10% data setting</summary>
 
   ```ASCII
   +---------------+-------+--------------+-------+----------------+-------+
   | category      | AP    | category     | AP    | category       | AP    |
   +---------------+-------+--------------+-------+----------------+-------+
-  | person        | 0.579 | bicycle      | 0.327 | car            | 0.463 |
-  | motorcycle    | 0.459 | airplane     | 0.715 | bus            | 0.699 |
-  | train         | 0.684 | truck        | 0.382 | boat           | 0.278 |
-  | traffic light | 0.283 | fire hydrant | 0.712 | stop sign      | 0.655 |
-  | parking meter | 0.501 | bench        | 0.255 | bird           | 0.408 |
-  | cat           | 0.767 | dog          | 0.704 | horse          | 0.652 |
-  | sheep         | 0.569 | cow          | 0.627 | elephant       | 0.721 |
-  | bear          | 0.812 | zebra        | 0.725 | giraffe        | 0.746 |
-  | backpack      | 0.141 | umbrella     | 0.417 | handbag        | 0.142 |
-  | tie           | 0.369 | suitcase     | 0.465 | frisbee        | 0.673 |
-  | skis          | 0.284 | snowboard    | 0.443 | sports ball    | 0.488 |
-  | kite          | 0.486 | baseball bat | 0.333 | baseball glove | 0.406 |
-  | skateboard    | 0.584 | surfboard    | 0.442 | tennis racket  | 0.493 |
-  | bottle        | 0.410 | wine glass   | 0.398 | cup            | 0.444 |
-  | fork          | 0.406 | knife        | 0.222 | spoon          | 0.189 |
-  | bowl          | 0.478 | banana       | 0.269 | apple          | 0.167 |
-  | sandwich      | 0.412 | orange       | 0.282 | broccoli       | 0.222 |
-  | carrot        | 0.215 | hot dog      | 0.420 | pizza          | 0.556 |
-  | donut         | 0.545 | cake         | 0.402 | chair          | 0.309 |
-  | couch         | 0.481 | potted plant | 0.274 | bed            | 0.508 |
-  | dining table  | 0.315 | toilet       | 0.683 | tv             | 0.611 |
-  | laptop        | 0.640 | mouse        | 0.639 | remote         | 0.343 |
-  | keyboard      | 0.559 | cell phone   | 0.401 | microwave      | 0.633 |
-  | oven          | 0.379 | toaster      | 0.080 | sink           | 0.400 |
-  | refrigerator  | 0.670 | book         | 0.142 | clock          | 0.538 |
-  | vase          | 0.394 | scissors     | 0.330 | teddy bear     | 0.514 |
-  | hair drier    | 0.015 | toothbrush   | 0.329 | None           | None  |
+  | person        | 0.578 | bicycle      | 0.329 | car            | 0.469 |
+  | motorcycle    | 0.470 | airplane     | 0.721 | bus            | 0.698 |
+  | train         | 0.683 | truck        | 0.385 | boat           | 0.273 |
+  | traffic light | 0.290 | fire hydrant | 0.699 | stop sign      | 0.646 |
+  | parking meter | 0.516 | bench        | 0.267 | bird           | 0.412 |
+  | cat           | 0.762 | dog          | 0.702 | horse          | 0.649 |
+  | sheep         | 0.572 | cow          | 0.626 | elephant       | 0.717 |
+  | bear          | 0.784 | zebra        | 0.727 | giraffe        | 0.736 |
+  | backpack      | 0.134 | umbrella     | 0.401 | handbag        | 0.142 |
+  | tie           | 0.366 | suitcase     | 0.461 | frisbee        | 0.674 |
+  | skis          | 0.299 | snowboard    | 0.421 | sports ball    | 0.475 |
+  | kite          | 0.503 | baseball bat | 0.326 | baseball glove | 0.416 |
+  | skateboard    | 0.566 | surfboard    | 0.439 | tennis racket  | 0.495 |
+  | bottle        | 0.409 | wine glass   | 0.400 | cup            | 0.451 |
+  | fork          | 0.417 | knife        | 0.229 | spoon          | 0.181 |
+  | bowl          | 0.474 | banana       | 0.271 | apple          | 0.189 |
+  | sandwich      | 0.398 | orange       | 0.312 | broccoli       | 0.224 |
+  | carrot        | 0.217 | hot dog      | 0.412 | pizza          | 0.553 |
+  | donut         | 0.516 | cake         | 0.413 | chair          | 0.301 |
+  | couch         | 0.466 | potted plant | 0.261 | bed            | 0.520 |
+  | dining table  | 0.311 | toilet       | 0.647 | tv             | 0.608 |
+  | laptop        | 0.653 | mouse        | 0.635 | remote         | 0.361 |
+  | keyboard      | 0.557 | cell phone   | 0.383 | microwave      | 0.624 |
+  | oven          | 0.384 | toaster      | 0.126 | sink           | 0.391 |
+  | refrigerator  | 0.669 | book         | 0.154 | clock          | 0.538 |
+  | vase          | 0.402 | scissors     | 0.327 | teddy bear     | 0.503 |
+  | hair drier    | 0.011 | toothbrush   | 0.357 | None           | None  |
   +---------------+-------+--------------+-------+----------------+-------+
   ```
 
     </details>
 
-- **NuScenes**
-  | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Details | Checkpoint |
+- **NuScenes Evaluation metrics:**
+
+  Detailed evaluation metrics for the Nuscenes-Partial setting:
+  | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Per-class AP | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
   | 1% Data | 0.262 0.509 0.242 0.032 0.203 0.375| 🔽More | Google Drive|
   | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| 🔽More |[Google Drive]() |
@@ -280,7 +298,7 @@ pip install nuscenes-devkit
   </p>
 
   <details open>
-  <summary>1% Data Details</summary>
+  <summary>Per-class AP details with 1% data setting</summary>
 
   ```ASCII
   +------------+-------+----------------------+-------+--------------+-------+
@@ -297,7 +315,7 @@ pip install nuscenes-devkit
 
   <details open>
 
-  <summary>5% Data Details</summary>
+  <summary>Per-class AP details with 5% data setting</summary>
 
   ```ASCII
   +------------+-------+----------------------+-------+--------------+-------+
@@ -313,7 +331,7 @@ pip install nuscenes-devkit
     </details>
     <details open>
 
-    <summary>10% Data Details</summary>
+    <summary>Per-class AP details with 10% data setting</summary>
 
   ```ASCII
   +------------+-------+----------------------+-------+--------------+-------+
