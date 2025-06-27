@@ -154,13 +154,13 @@ pip install nuscenes-devkit
   Detailed evaluation metrics for the COCO-Partial setting:
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Per-class AP | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
-  | 1% Data |0.351 0.512 0.373 0.192 0.378 0.481 | 🔽More | Google Drive|
+  | 1% Data |0.350 0.510 0.372 0.192 0.379 0.480 | 🔽More | [Google Drive]()|
   | 5% Data |0.422 0.586 0.453 0.237 0.460 0.574 | 🔽More | [Google Drive]()|
   | 10% Data |0.451 0.618 0.486 0.270 0.490 0.599| 🔽More | [Google Drive]()|
 
   Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
     <p align="left">
-        <img src=./assets/eval_coco.png width="85%" style="display: inline-block; margin-right: 2%;" />
+        <img src=./assets/eval_coco.png width="95%" style="display: inline-block; margin-right: 2%;" />
     </p>
 
     <details open>
@@ -171,33 +171,33 @@ pip install nuscenes-devkit
   +---------------+-------+--------------+-------+----------------+-------+
   | category      | AP    | category     | AP    | category       | AP    |
   +---------------+-------+--------------+-------+----------------+-------+
-  | person        | 0.499 | bicycle      | 0.258 | car            | 0.377 |
-  | motorcycle    | 0.324 | airplane     | 0.637 | bus            | 0.593 |
-  | train         | 0.603 | truck        | 0.276 | boat           | 0.185 |
-  | traffic light | 0.208 | fire hydrant | 0.610 | stop sign      | 0.525 |
-  | parking meter | 0.369 | bench        | 0.194 | bird           | 0.324 |
-  | cat           | 0.711 | dog          | 0.632 | horse          | 0.541 |
-  | sheep         | 0.471 | cow          | 0.561 | elephant       | 0.578 |
-  | bear          | 0.737 | zebra        | 0.650 | giraffe        | 0.658 |
-  | backpack      | 0.073 | umbrella     | 0.309 | handbag        | 0.072 |
-  | tie           | 0.284 | suitcase     | 0.292 | frisbee        | 0.619 |
-  | skis          | 0.130 | snowboard    | 0.258 | sports ball    | 0.403 |
-  | kite          | 0.377 | baseball bat | 0.235 | baseball glove | 0.341 |
-  | skateboard    | 0.469 | surfboard    | 0.342 | tennis racket  | 0.402 |
-  | bottle        | 0.321 | wine glass   | 0.280 | cup            | 0.349 |
-  | fork          | 0.240 | knife        | 0.097 | spoon          | 0.077 |
-  | bowl          | 0.360 | banana       | 0.163 | apple          | 0.089 |
-  | sandwich      | 0.251 | orange       | 0.239 | broccoli       | 0.197 |
-  | carrot        | 0.101 | hot dog      | 0.247 | pizza          | 0.523 |
-  | donut         | 0.394 | cake         | 0.314 | chair          | 0.220 |
-  | couch         | 0.384 | potted plant | 0.131 | bed            | 0.426 |
-  | dining table  | 0.233 | toilet       | 0.576 | tv             | 0.520 |
-  | laptop        | 0.524 | mouse        | 0.563 | remote         | 0.162 |
-  | keyboard      | 0.456 | cell phone   | 0.240 | microwave      | 0.481 |
-  | oven          | 0.286 | toaster      | 0.132 | sink           | 0.300 |
-  | refrigerator  | 0.532 | book         | 0.080 | clock          | 0.461 |
-  | vase          | 0.310 | scissors     | 0.220 | teddy bear     | 0.406 |
-  | hair drier    | 0.001 | toothbrush   | 0.066 | None           | None  |
+  | person        | 0.495 | bicycle      | 0.257 | car            | 0.378 |
+  | motorcycle    | 0.336 | airplane     | 0.651 | bus            | 0.594 |
+  | train         | 0.598 | truck        | 0.275 | boat           | 0.178 |
+  | traffic light | 0.204 | fire hydrant | 0.607 | stop sign      | 0.541 |
+  | parking meter | 0.377 | bench        | 0.191 | bird           | 0.317 |
+  | cat           | 0.714 | dog          | 0.624 | horse          | 0.538 |
+  | sheep         | 0.467 | cow          | 0.555 | elephant       | 0.590 |
+  | bear          | 0.732 | zebra        | 0.650 | giraffe        | 0.655 |
+  | backpack      | 0.068 | umbrella     | 0.306 | handbag        | 0.075 |
+  | tie           | 0.288 | suitcase     | 0.287 | frisbee        | 0.613 |
+  | skis          | 0.126 | snowboard    | 0.246 | sports ball    | 0.406 |
+  | kite          | 0.372 | baseball bat | 0.232 | baseball glove | 0.342 |
+  | skateboard    | 0.464 | surfboard    | 0.335 | tennis racket  | 0.404 |
+  | bottle        | 0.319 | wine glass   | 0.284 | cup            | 0.346 |
+  | fork          | 0.240 | knife        | 0.092 | spoon          | 0.076 |
+  | bowl          | 0.359 | banana       | 0.159 | apple          | 0.088 |
+  | sandwich      | 0.260 | orange       | 0.242 | broccoli       | 0.199 |
+  | carrot        | 0.095 | hot dog      | 0.254 | pizza          | 0.517 |
+  | donut         | 0.377 | cake         | 0.317 | chair          | 0.215 |
+  | couch         | 0.391 | potted plant | 0.129 | bed            | 0.421 |
+  | dining table  | 0.236 | toilet       | 0.575 | tv             | 0.512 |
+  | laptop        | 0.525 | mouse        | 0.568 | remote         | 0.160 |
+  | keyboard      | 0.442 | cell phone   | 0.235 | microwave      | 0.488 |
+  | oven          | 0.294 | toaster      | 0.148 | sink           | 0.295 |
+  | refrigerator  | 0.522 | book         | 0.078 | clock          | 0.462 |
+  | vase          | 0.313 | scissors     | 0.169 | teddy bear     | 0.404 |
+  | hair drier    | 0.001 | toothbrush   | 0.091 | None           | None  |
   +---------------+-------+--------------+-------+----------------+-------+
   ```
 
@@ -294,7 +294,7 @@ pip install nuscenes-devkit
 
   Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting:
   <p align="left">
-      <img src=./assets/eval_nusc.png width="85%" style="display: inline-block; margin-right: 2%;" />
+      <img src=./assets/eval_nusc.png width="95%" style="display: inline-block; margin-right: 2%;" />
   </p>
 
   <details open>
@@ -345,6 +345,14 @@ pip install nuscenes-devkit
   ```
 
     </details>
+
+# Dataset
+
+| NuScenes Image                             | Caption generated by Ovis1.6-Gemma2-9B-gptq-int4 using manually designed prompt                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src=assets/image_1.png width=1200  /> | The image depicts an urban street scene with several vehicles, pedestrians, and traffic signs. There are at least six vehicles visible, including cars and an SUV, primarily on the road. Pedestrians are seen on the sidewalk, near the crosswalk. Traffic signs are present at intersections, including traffic lights and street signs. The scene is set against a backdrop of construction and modern buildings, indicating a busy city environment. |
+| <img src=assets/image_2.png width=1000  /> | The image depicts an urban street scene with several vehicles parked on the left side, including a black SUV and a white sedan. A pedestrian in a wheelchair is visible on the sidewalk. Traffic signs are present, including a stop sign near the center. The scene is characterized by older buildings and a modern skyscraper in the background.                                                                                                      |
+| <img src=assets/image_3.png width=1000  /> | The image depicts a busy urban road with a line of vehicles, including a silver car in the foreground, a white truck, and several other cars, all moving slowly or stopped. A black SUV is visible on the right. There are no pedestrians or traffic signs in the image. The scene is set against a backdrop of overcast skies and urban buildings.                                                                                                      |
 
 # Acknowledgement
 
