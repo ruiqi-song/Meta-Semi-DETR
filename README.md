@@ -288,9 +288,9 @@ pip install nuscenes-devkit
   Detailed evaluation metrics for the Nuscenes-Partial setting:
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Per-class AP | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
-  | 1% Data | 0.262 0.509 0.242 0.032 0.203 0.375| 🔽More | Google Drive|
+  | 1% Data | 0.260 0.485 0.253 0.040 0.195 0.381| 🔽More | [Google Drive]()|
   | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| 🔽More |[Google Drive]() |
-  | 10% Data |0.329 0.591 0.330 0.062 0.270 0.453 | 🔽More |Google Drive |
+  | 10% Data |0.327 0.589 0.330 0.060 0.272 0.450 | 🔽More |[Google Drive]() |
 
   Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting:
   <p align="left">
@@ -304,10 +304,10 @@ pip install nuscenes-devkit
   +------------+-------+----------------------+-------+--------------+-------+
   | category   | AP    | category             | AP    | category     | AP    |
   +------------+-------+----------------------+-------+--------------+-------+
-  | car        | 0.474 | truck                | 0.273 | bus          | 0.516 |
-  | trailer    | 0.146 | construction_vehicle | 0.067 | pedestrian   | 0.258 |
-  | motorcycle | 0.183 | bicycle              | 0.156 | traffic_cone | 0.253 |
-  | barrier    | 0.290 | None                 | None  | None         | None  |
+  | car        | 0.502 | truck                | 0.326 | bus          | 0.518 |
+  | trailer    | 0.118 | construction_vehicle | 0.005 | pedestrian   | 0.278 |
+  | motorcycle | 0.203 | bicycle              | 0.185 | traffic_cone | 0.219 |
+  | barrier    | 0.248 | None                 | None  | None         | None  |
   +------------+-------+----------------------+-------+--------------+-------+
   ```
 
@@ -337,10 +337,10 @@ pip install nuscenes-devkit
   +------------+-------+----------------------+-------+--------------+-------+
   | category   | AP    | category             | AP    | category     | AP    |
   +------------+-------+----------------------+-------+--------------+-------+
-  | car        | 0.550 | truck                | 0.377 | bus          | 0.571 |
-  | trailer    | 0.184 | construction_vehicle | 0.071 | pedestrian   | 0.320 |
-  | motorcycle | 0.259 | bicycle              | 0.277 | traffic_cone | 0.312 |
-  | barrier    | 0.368 | None                 | None  | None         | None  |
+  | car        | 0.546 | truck                | 0.376 | bus          | 0.566 |
+  | trailer    | 0.172 | construction_vehicle | 0.070 | pedestrian   | 0.322 |
+  | motorcycle | 0.272 | bicycle              | 0.269 | traffic_cone | 0.309 |
+  | barrier    | 0.370 | None                 | None  | None         | None  |
   +------------+-------+----------------------+-------+--------------+-------+
   ```
 
