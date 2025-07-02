@@ -6,7 +6,7 @@ Version: v1.0.0
 Author: Anonymous  && Anonymous@163.com
 Date: 2025-01-25 21:48:08
 Description: 
-LastEditors: knightdby
+LastEditors: Anonymous
 LastEditTime: 2025-06-25 21:55:21
 FilePath: /Meta-Semi-DETR/tools/dataset/export_nusc2coco.py
 Copyright 2025  by Inc, All Rights Reserved. 
