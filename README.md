@@ -115,7 +115,7 @@ pip install nuscenes-devkit
   python tools/dataset/export_nusc2coco.py
   ```
 
-- Download the anno&split files from [[Google Drive]](https://drive.google.com/drive/folders/1ftl7gFjtbs8JtEvra7AIZRNfeygK_WWD) and put them under `dataset/nuscenes_coco/annotations` folder.
+- Download the anno&split files from [[Google Drive]](https://drive.google.com/drive/folders/1ftl7gFjtbs8JtEvra7AIZRNfeygK_WWD) and put them under `dataset/nuscenes_coco/annotations` folder, or execute the same command in the COCO dataset to generate the split files.
 - Download the caption label files from [[Google Drive]](https://drive.google.com/file/d/1o_p5QOU1foMk36XjoUYZk0jdniJG9tcj/view?usp=drive_link) and put them under `dataset/nuscenes_coco/captions_ovis` folder.
 
 </details>
