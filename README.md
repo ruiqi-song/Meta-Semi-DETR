@@ -8,8 +8,8 @@ This repo is mostly built on top of [Semi-DETR](https://github.com/JCZ404/Semi-D
 
 # News
 
-- **`[2025/6/25]`:** Initial training&evaluation code released.
 - **`[2025/7/1]`:** dataset and checkpoints released.
+- **`[2025/6/25]`:** Initial training&evaluation code released.
 
 # Methods
 
