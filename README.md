@@ -8,7 +8,8 @@ This repo is mostly built on top of [Semi-DETR](https://github.com/JCZ404/Semi-D
 
 # News
 
-- **`[2025/6/25]`:** Initial training&evaluation code release.
+- **`[2025/6/25]`:** Initial training&evaluation code released.
+- **`[2025/7/1]`:** dataset and checkpoints released.
 
 # Methods
 
@@ -64,7 +65,7 @@ pip install yapf==0.40.1
 pip install nuscenes-devkit
 ```
 
-- Download bert-base-uncased model weight from [this link](https://huggingface.co/google-bert/bert-base-uncased) and put it under `weights` folder.
+- Download bert-base-uncased model weight from [[huggingface]](https://huggingface.co/google-bert/bert-base-uncased) and put it under `weights` folder.
 
 </details>
 
@@ -86,7 +87,7 @@ pip install nuscenes-devkit
   	└── captions_val2017.json
   ```
 
-- Execute the following command to generate data set splits, or download the split files(refer to [Semi-DETR](https://github.dev/JCZ404/Semi-DETR)) from [here](https://drive.google.com/file/d/1Hq98YEU-WQXkZ6nR3t_OxuTNJKp5) and put them under `dataset/coco2017/annotations/semi_supervised/` folder:
+- Execute the following command to generate data set splits, or download the anno&split files(refer to [Semi-DETR](https://github.dev/JCZ404/Semi-DETR)) from [[Google Drive]](https://drive.google.com/file/d/1gbw8Rohx_u4JUfOY9kCVJZe5umYdEvUZ/view?usp=drive_link) and put them under `dataset/coco2017/annotations` folder:
 
   ```shell script
   bash tools/dataset/prepare_coco_data.sh conduct
@@ -100,7 +101,7 @@ pip install nuscenes-devkit
 
 2. **NuScenes**
 
-- Download the [NuScenes](https://www.nuscenes.org/nuscenes) dataset
+- Download the [NuScenes](https://www.nuscenes.org/nuscenes) dataset.
 - Execute the following command to export 2D annotations with coco format, and organize them as following:
 
   ```bash
@@ -114,8 +115,8 @@ pip install nuscenes-devkit
   python tools/dataset/export_nusc2coco.py
   ```
 
-- Download the split files from [here](.) and put them under `dataset/nuscenes_coco/annotations/semi_supervised/` folder.
-- Download the caption label files from [here](.) and put them under `dataset/nuscenes_coco/captions_ovis/` folder.
+- Download the anno&split files from [[Google Drive]](https://drive.google.com/drive/folders/1ftl7gFjtbs8JtEvra7AIZRNfeygK_WWD) and put them under `dataset/nuscenes_coco/annotations` folder.
+- Download the caption label files from [[Google Drive]](https://drive.google.com/file/d/1o_p5QOU1foMk36XjoUYZk0jdniJG9tcj/view?usp=drive_link) and put them under `dataset/nuscenes_coco/captions_ovis` folder.
 
 </details>
 
@@ -154,9 +155,9 @@ pip install nuscenes-devkit
   Detailed evaluation metrics for the COCO-Partial setting:
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Per-class AP | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
-  | 1% Data |0.350 0.510 0.372 0.192 0.379 0.480 | 🔽More | [Google Drive]()|
-  | 5% Data |0.422 0.586 0.453 0.237 0.460 0.574 | 🔽More | [Google Drive]()|
-  | 10% Data |0.451 0.618 0.486 0.270 0.490 0.599| 🔽More | [Google Drive]()|
+  | 1% Data |0.350 0.510 0.372 0.192 0.379 0.480 | 🔽More | [Google Drive](https://drive.google.com/file/d/1oXHRYV1rhkNL68VichlOg5272jv8YqUf/view?usp=drive_link)|
+  | 5% Data |0.422 0.586 0.453 0.237 0.460 0.574 | 🔽More | [Google Drive](https://drive.google.com/file/d/1cjicpsThvFIoAT0ldxXGO3mZBiPQTs4i/view?usp=drive_link)|
+  | 10% Data |0.451 0.618 0.486 0.270 0.490 0.599| 🔽More | [Google Drive](https://drive.google.com/file/d/1Bfr7kDTuV_iSb6ReuaIC_SEmjjnw3UGu/view?usp=drive_link)|
 
   Comparing Mate Semi-DETR with latest SOTA methods on COCO-Partial setting:
     <p align="left">
@@ -288,9 +289,9 @@ pip install nuscenes-devkit
   Detailed evaluation metrics for the Nuscenes-Partial setting:
   | Data Setting | mAP mAP_50 mAP_75 mAP_s mAP_m mAP_l | Per-class AP | Checkpoint |
   | ------- | ------- | ------------------------ | ------- |
-  | 1% Data | 0.260 0.485 0.253 0.040 0.195 0.381| 🔽More | [Google Drive]()|
-  | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| 🔽More |[Google Drive]() |
-  | 10% Data |0.327 0.589 0.330 0.060 0.272 0.450 | 🔽More |[Google Drive]() |
+  | 1% Data | 0.260 0.485 0.253 0.040 0.195 0.381| 🔽More | [Google Drive](https://drive.google.com/file/d/1ennqfmTSRwFD5OGaMXspJGg9uhISc-Tn/view?usp=drive_link)|
+  | 5% Data | 0.320 0.584 0.316 0.049 0.257 0.445| 🔽More |[Google Drive](https://drive.google.com/file/d/1A-kf2KD5fpKwBDwXmEUqjHjHB3Q4dVa2/view?usp=drive_link) |
+  | 10% Data |0.327 0.589 0.330 0.060 0.272 0.450 | 🔽More |[Google Drive](https://drive.google.com/file/d/1qnwz4ENhRRYEsPOqBBf44ACWEFe3O9jd/view?usp=drive_link) |
 
   Comparing Mate Semi-DETR with latest SOTA methods on Nuscenes-Partial setting:
   <p align="left">
